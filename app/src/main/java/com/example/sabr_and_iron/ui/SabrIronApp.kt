@@ -1,16 +1,16 @@
 package com.example.sabr_and_iron.ui
 
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.ExtendedFloatingActionButton
+import androidx.compose.material3.FloatingActionButton
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.NavigationBar
-import androidx.compose.material3.NavigationBarItem
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
 import androidx.compose.material3.TopAppBar
@@ -18,18 +18,20 @@ import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Modifier
-import androidx.navigation.NavDestination.Companion.hierarchy
-import androidx.navigation.NavGraph.Companion.findStartDestination
+import androidx.compose.ui.unit.dp
+import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.navigation.NavType
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.compose.currentBackStackEntryAsState
 import androidx.navigation.compose.rememberNavController
 import androidx.navigation.navArgument
+import com.example.sabr_and_iron.ui.components.FloatingIslandNavigationBar
 import com.example.sabr_and_iron.ui.exercises.ExerciseEditorScreen
 import com.example.sabr_and_iron.ui.exercises.ExercisesScreen
 import com.example.sabr_and_iron.ui.navigation.AppDestination
 import com.example.sabr_and_iron.ui.navigation.Routes
+import com.example.sabr_and_iron.ui.records.RecordsOverflowMenu
 import com.example.sabr_and_iron.ui.records.RecordsScreen
 import com.example.sabr_and_iron.ui.routines.RoutineEditorScreen
 import com.example.sabr_and_iron.ui.routines.RoutinesScreen
@@ -51,6 +53,9 @@ fun SabrIronApp() {
     val selectedDestination = AppDestination.entries.find { it.route == currentRoute }
         ?: AppDestination.Workouts
     val showStartWorkoutFab = currentRoute == AppDestination.Workouts.route
+    val showAddExerciseFab = currentRoute == AppDestination.Exercises.route
+    val showAddRoutineFab = currentRoute == AppDestination.Routines.route
+    val addFabShape = RoundedCornerShape(16.dp)
 
     val title = when {
         currentRoute == Routes.WorkoutNew -> "Start New Workout"
@@ -78,6 +83,16 @@ fun SabrIronApp() {
                         }
                     }
                 },
+                actions = {
+                    if (currentRoute == AppDestination.Records.route) {
+                        val recordsEntry = navController.getBackStackEntry(
+                            AppDestination.Records.route,
+                        )
+                        RecordsOverflowMenu(
+                            viewModel = viewModel(viewModelStoreOwner = recordsEntry),
+                        )
+                    }
+                },
                 colors = TopAppBarDefaults.topAppBarColors(
                     containerColor = MaterialTheme.colorScheme.surface,
                     titleContentColor = MaterialTheme.colorScheme.onSurface,
@@ -86,45 +101,41 @@ fun SabrIronApp() {
         },
         bottomBar = {
             if (isTabRoot) {
-                NavigationBar(containerColor = MaterialTheme.colorScheme.surface) {
-                    AppDestination.entries.forEach { destination ->
-                        val selected = currentDestination
-                            ?.hierarchy
-                            ?.any { it.route == destination.route } == true
-                        NavigationBarItem(
-                            selected = selected,
-                            onClick = {
-                                navController.navigate(destination.route) {
-                                    popUpTo(navController.graph.findStartDestination().id) {
-                                        saveState = true
-                                    }
-                                    launchSingleTop = true
-                                    restoreState = true
-                                }
-                            },
-                            icon = {
-                                Icon(
-                                    imageVector = destination.icon,
-                                    contentDescription = destination.label,
-                                )
-                            },
-                            label = { Text(destination.label) },
-                        )
-                    }
-                }
+                FloatingIslandNavigationBar(
+                    navController = navController,
+                    currentDestination = currentDestination,
+                )
             }
         },
         floatingActionButton = {
-            if (showStartWorkoutFab) {
-                ExtendedFloatingActionButton(
-                    onClick = { navController.navigate(Routes.WorkoutNew) },
-                    icon = {
-                        Icon(Icons.Filled.Add, contentDescription = null)
-                    },
-                    text = { Text("Start New Workout") },
-                    containerColor = MaterialTheme.colorScheme.primaryContainer,
-                    contentColor = MaterialTheme.colorScheme.onPrimaryContainer,
-                )
+            when {
+                showStartWorkoutFab -> {
+                    ExtendedFloatingActionButton(
+                        onClick = { navController.navigate(Routes.WorkoutNew) },
+                        icon = {
+                            Icon(Icons.Filled.Add, contentDescription = null)
+                        },
+                        text = { Text("Start New Workout") },
+                        containerColor = MaterialTheme.colorScheme.primaryContainer,
+                        contentColor = MaterialTheme.colorScheme.onPrimaryContainer,
+                    )
+                }
+                showAddExerciseFab -> {
+                    FloatingActionButton(
+                        onClick = { navController.navigate(Routes.ExerciseNew) },
+                        shape = addFabShape,
+                    ) {
+                        Icon(Icons.Filled.Add, contentDescription = "Add exercise")
+                    }
+                }
+                showAddRoutineFab -> {
+                    FloatingActionButton(
+                        onClick = { navController.navigate(Routes.RoutineNew) },
+                        shape = addFabShape,
+                    ) {
+                        Icon(Icons.Filled.Add, contentDescription = "Add routine")
+                    }
+                }
             }
         },
         containerColor = MaterialTheme.colorScheme.background,
@@ -139,13 +150,11 @@ fun SabrIronApp() {
             }
             composable(AppDestination.Exercises.route) {
                 ExercisesScreen(
-                    onAddExercise = { navController.navigate(Routes.ExerciseNew) },
                     onOpenExercise = { id -> navController.navigate(Routes.exerciseEdit(id)) },
                 )
             }
             composable(AppDestination.Routines.route) {
                 RoutinesScreen(
-                    onAddRoutine = { navController.navigate(Routes.RoutineNew) },
                     onOpenRoutine = { id -> navController.navigate(Routes.routineEdit(id)) },
                 )
             }

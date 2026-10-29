@@ -5,6 +5,7 @@ import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
@@ -32,7 +33,6 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
-import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
@@ -57,18 +57,11 @@ import com.patrykandpatrick.vico.core.cartesian.data.lineSeries
 import java.io.File
 
 @Composable
-fun RecordsScreen(
-    modifier: Modifier = Modifier,
+fun RecordsOverflowMenu(
     viewModel: RecordsViewModel = viewModel(),
 ) {
-    val records by viewModel.records.collectAsStateWithLifecycle()
-    val progress by viewModel.progress.collectAsStateWithLifecycle()
-    val selectedId by viewModel.selectedId.collectAsStateWithLifecycle()
-    val message by viewModel.message.collectAsStateWithLifecycle()
     val context = LocalContext.current
-    val snackbar = remember { SnackbarHostState() }
     var menuExpanded by remember { mutableStateOf(false) }
-
     val importLauncher = rememberLauncherForActivityResult(
         contract = ActivityResultContracts.OpenDocument(),
     ) { uri ->
@@ -89,6 +82,52 @@ fun RecordsScreen(
         context.startActivity(Intent.createChooser(intent, "Share export"))
     }
 
+    Box {
+        IconButton(onClick = { menuExpanded = true }) {
+            Icon(Icons.Filled.MoreVert, contentDescription = "Backup & export")
+        }
+        DropdownMenu(expanded = menuExpanded, onDismissRequest = { menuExpanded = false }) {
+            DropdownMenuItem(
+                text = { Text("Export JSON") },
+                onClick = {
+                    menuExpanded = false
+                    viewModel.exportJson { shareFile(it, "application/json") }
+                },
+            )
+            DropdownMenuItem(
+                text = { Text("Import JSON") },
+                onClick = {
+                    menuExpanded = false
+                    importLauncher.launch(arrayOf("application/json", "text/*", "*/*"))
+                },
+            )
+            DropdownMenuItem(
+                text = { Text("Export Excel") },
+                onClick = {
+                    menuExpanded = false
+                    viewModel.exportExcel {
+                        shareFile(
+                            it,
+                            "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+                        )
+                    }
+                },
+            )
+        }
+    }
+}
+
+@Composable
+fun RecordsScreen(
+    modifier: Modifier = Modifier,
+    viewModel: RecordsViewModel = viewModel(),
+) {
+    val records by viewModel.records.collectAsStateWithLifecycle()
+    val progress by viewModel.progress.collectAsStateWithLifecycle()
+    val selectedId by viewModel.selectedId.collectAsStateWithLifecycle()
+    val message by viewModel.message.collectAsStateWithLifecycle()
+    val snackbar = remember { SnackbarHostState() }
+
     LaunchedEffect(message) {
         message?.let {
             snackbar.showSnackbar(it)
@@ -96,47 +135,7 @@ fun RecordsScreen(
         }
     }
 
-    Column(modifier = modifier.fillMaxSize()) {
-        Row(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(horizontal = 8.dp),
-            horizontalArrangement = Arrangement.End,
-            verticalAlignment = Alignment.CenterVertically,
-        ) {
-            IconButton(onClick = { menuExpanded = true }) {
-                Icon(Icons.Filled.MoreVert, contentDescription = "Backup & export")
-            }
-            DropdownMenu(expanded = menuExpanded, onDismissRequest = { menuExpanded = false }) {
-                DropdownMenuItem(
-                    text = { Text("Export JSON") },
-                    onClick = {
-                        menuExpanded = false
-                        viewModel.exportJson { shareFile(it, "application/json") }
-                    },
-                )
-                DropdownMenuItem(
-                    text = { Text("Import JSON") },
-                    onClick = {
-                        menuExpanded = false
-                        importLauncher.launch(arrayOf("application/json", "text/*", "*/*"))
-                    },
-                )
-                DropdownMenuItem(
-                    text = { Text("Export Excel") },
-                    onClick = {
-                        menuExpanded = false
-                        viewModel.exportExcel {
-                            shareFile(
-                                it,
-                                "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
-                            )
-                        }
-                    },
-                )
-            }
-        }
-
+    Box(modifier = modifier.fillMaxSize()) {
         if (records.isEmpty()) {
             EmptyState(
                 title = "No personal records yet.",
@@ -144,7 +143,12 @@ fun RecordsScreen(
             )
         } else {
             LazyColumn(
-                contentPadding = PaddingValues(16.dp),
+                contentPadding = PaddingValues(
+                    start = 16.dp,
+                    end = 16.dp,
+                    top = 8.dp,
+                    bottom = 16.dp,
+                ),
                 verticalArrangement = Arrangement.spacedBy(8.dp),
             ) {
                 items(records, key = { it.exerciseId }) { record ->
@@ -166,17 +170,17 @@ fun RecordsScreen(
                         ),
                     ) {
                         Column(
-                            modifier = Modifier.padding(16.dp),
+                            Modifier.padding(16.dp),
                             verticalArrangement = Arrangement.spacedBy(4.dp),
                         ) {
                             Text(record.exerciseName, style = MaterialTheme.typography.titleMedium)
                             Text(
-                                "${formatKg(record.effectiveWeightKg)} kg × ${record.reps}",
+                                text = "${formatKg(record.effectiveWeightKg)} kg × ${record.reps}",
                                 style = MaterialTheme.typography.bodyLarge,
                                 color = MaterialTheme.colorScheme.primary,
                             )
                             Text(
-                                formatDate(record.performedAt),
+                                text = formatDate(record.performedAt),
                                 style = MaterialTheme.typography.bodySmall,
                                 color = MaterialTheme.colorScheme.onSurfaceVariant,
                             )
