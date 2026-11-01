@@ -71,6 +71,14 @@ class BackupRepository(
             routineDao.deleteAllRoutineExercises()
             routineDao.deleteAllRoutines()
             exerciseDao.deleteAll()
+            syncSqliteSequence(
+                "exercises" to null,
+                "routines" to null,
+                "routine_exercises" to null,
+                "workouts" to null,
+                "workout_exercises" to null,
+                "sets" to null,
+            )
         }
     }
 
