@@ -5,6 +5,7 @@ import kotlinx.serialization.Serializable
 @Serializable
 data class AppBackup(
     val version: Int = 1,
+    val exportedAt: Long? = null,
     val exercises: List<ExerciseBackup> = emptyList(),
     val routines: List<RoutineBackup> = emptyList(),
     val routineExercises: List<RoutineExerciseBackup> = emptyList(),

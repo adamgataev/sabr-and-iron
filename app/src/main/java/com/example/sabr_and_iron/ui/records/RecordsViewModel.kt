@@ -90,6 +90,14 @@ class RecordsViewModel(application: Application) : AndroidViewModel(application)
         }
     }
 
+    fun importExcel(uri: Uri) {
+        viewModelScope.launch {
+            runCatching { backupRepository.importExcel(uri) }
+                .onSuccess { _message.value = "Excel backup restored" }
+                .onFailure { _message.value = it.message ?: "Excel import failed" }
+        }
+    }
+
     fun loadSampleData() {
         viewModelScope.launch {
             runCatching { dummyDataSeeder.seedIfEmpty() }

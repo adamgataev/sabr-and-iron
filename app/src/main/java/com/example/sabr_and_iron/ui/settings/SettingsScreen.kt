@@ -42,10 +42,15 @@ fun SettingsScreen(
     val message by viewModel.message.collectAsStateWithLifecycle()
     val snackbar = LocalAppSnackbar.current
     var confirmClear by remember { mutableStateOf(false) }
-    val importLauncher = rememberLauncherForActivityResult(
+    val importJsonLauncher = rememberLauncherForActivityResult(
         contract = ActivityResultContracts.OpenDocument(),
     ) { uri ->
         uri?.let { viewModel.importJson(it) }
+    }
+    val importExcelLauncher = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.OpenDocument(),
+    ) { uri ->
+        uri?.let { viewModel.importExcel(it) }
     }
 
     fun shareFile(file: File, mime: String) {
@@ -91,7 +96,7 @@ fun SettingsScreen(
         }
         OutlinedButton(
             onClick = {
-                importLauncher.launch(arrayOf("application/json", "text/*", "*/*"))
+                importJsonLauncher.launch(arrayOf("application/json", "text/*", "*/*"))
             },
             modifier = Modifier.fillMaxWidth(),
         ) {
@@ -109,6 +114,20 @@ fun SettingsScreen(
             modifier = Modifier.fillMaxWidth(),
         ) {
             Text("Export Excel")
+        }
+        OutlinedButton(
+            onClick = {
+                importExcelLauncher.launch(
+                    arrayOf(
+                        "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+                        "application/vnd.ms-excel",
+                        "*/*",
+                    ),
+                )
+            },
+            modifier = Modifier.fillMaxWidth(),
+        ) {
+            Text("Import Excel")
         }
         OutlinedButton(
             onClick = { viewModel.loadSampleData() },
