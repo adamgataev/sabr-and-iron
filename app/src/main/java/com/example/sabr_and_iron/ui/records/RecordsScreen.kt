@@ -59,7 +59,6 @@ import com.example.sabr_and_iron.ui.util.formatDate
 import com.example.sabr_and_iron.ui.util.formatDistanceKm
 import com.example.sabr_and_iron.ui.util.formatDuration
 import com.example.sabr_and_iron.ui.util.formatKg
-import com.example.sabr_and_iron.ui.util.formatPace
 import com.patrykandpatrick.vico.compose.cartesian.CartesianChartHost
 import com.patrykandpatrick.vico.compose.cartesian.VicoScrollState
 import com.patrykandpatrick.vico.compose.cartesian.VicoZoomState
@@ -402,12 +401,7 @@ fun formatRecordSummary(record: PersonalRecord): String =
         record.distanceMeters != null -> {
             val distance = formatDistanceKm(record.distanceMeters)
             val duration = record.durationSeconds?.let { " · ${formatDuration(it)}" }.orEmpty()
-            val pace = if (record.durationSeconds != null) {
-                formatPace(record.distanceMeters, record.durationSeconds)?.let { " · $it" }.orEmpty()
-            } else {
-                ""
-            }
-            "$distance$duration$pace"
+            "$distance$duration"
         }
         record.durationSeconds != null -> formatDuration(record.durationSeconds)
         else -> "—"
