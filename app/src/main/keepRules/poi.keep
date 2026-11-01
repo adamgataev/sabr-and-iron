@@ -1,0 +1,15 @@
+# Apache POI / OOXML / XmlBeans — heavy reflection; keep for Excel backup.
+-keep class org.apache.poi.** { *; }
+-keep class org.openxmlformats.** { *; }
+-keep class com.microsoft.schemas.** { *; }
+-keep class org.apache.xmlbeans.** { *; }
+-keep class schemaorg_apache_xmlbeans.** { *; }
+-keep class org.apache.commons.compress.** { *; }
+
+-dontwarn org.apache.poi.**
+-dontwarn org.apache.xmlbeans.**
+-dontwarn org.openxmlformats.**
+-dontwarn com.microsoft.schemas.**
+-dontwarn org.apache.commons.compress.**
+-dontwarn org.apache.log4j.**
+-dontwarn org.slf4j.**

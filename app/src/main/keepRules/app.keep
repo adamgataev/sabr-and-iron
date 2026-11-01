@@ -1,0 +1,13 @@
+# Keep Room entities / DAOs if R8 can't see KSP-generated accessors fully.
+-keep class com.example.sabr_and_iron.data.local.entity.** { *; }
+-keep class com.example.sabr_and_iron.data.backup.** { *; }
+
+# kotlinx.serialization
+-keepattributes *Annotation*, InnerClasses
+-dontnote kotlinx.serialization.AnnotationsKt
+-keepclassmembers class kotlinx.serialization.json.** {
+    *** Companion;
+}
+-keepclasseswithmembers class com.example.sabr_and_iron.** {
+    kotlinx.serialization.KSerializer serializer(...);
+}
