@@ -1,8 +1,5 @@
 package com.example.sabr_and_iron.ui.records
 
-import android.content.Intent
-import androidx.activity.compose.rememberLauncherForActivityResult
-import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -21,7 +18,8 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.MoreVert
+import androidx.compose.material.icons.automirrored.filled.Sort
+import androidx.compose.material.icons.filled.Check
 import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.Icon
@@ -37,18 +35,15 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.layout.onSizeChanged
-import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
-import androidx.core.content.FileProvider
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.example.sabr_and_iron.data.local.model.PersonalRecord
 import com.example.sabr_and_iron.data.local.model.ProgressMetric
 import com.example.sabr_and_iron.data.local.model.ProgressPoint
 import com.example.sabr_and_iron.ui.components.AppCard
-import com.example.sabr_and_iron.ui.components.ConfirmDeleteDialog
 import com.example.sabr_and_iron.ui.components.EmptyState
 import com.example.sabr_and_iron.ui.components.FloatingIslandOnlyListBottomPadding
 import com.example.sabr_and_iron.ui.components.LocalAppSnackbar
@@ -83,41 +78,20 @@ import com.patrykandpatrick.vico.core.cartesian.data.CartesianValueFormatter
 import com.patrykandpatrick.vico.core.cartesian.data.lineSeries
 import com.patrykandpatrick.vico.core.cartesian.layer.LineCartesianLayer
 import com.patrykandpatrick.vico.core.common.shape.CorneredShape
-import java.io.File
 import kotlin.math.roundToInt
 
 @Composable
-fun RecordsOverflowMenu(
+fun RecordsSortMenu(
     viewModel: RecordsViewModel = viewModel(),
 ) {
-    val context = LocalContext.current
     var menuExpanded by remember { mutableStateOf(false) }
-    var confirmClear by remember { mutableStateOf(false) }
-    val importLauncher = rememberLauncherForActivityResult(
-        contract = ActivityResultContracts.OpenDocument(),
-    ) { uri ->
-        uri?.let { viewModel.importJson(it) }
-    }
-
-    fun shareFile(file: File, mime: String) {
-        val uri = FileProvider.getUriForFile(
-            context,
-            "${context.packageName}.fileprovider",
-            file,
-        )
-        val intent = Intent(Intent.ACTION_SEND).apply {
-            type = mime
-            putExtra(Intent.EXTRA_STREAM, uri)
-            addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
-        }
-        context.startActivity(Intent.createChooser(intent, "Share export"))
-    }
+    val sort by viewModel.sort.collectAsStateWithLifecycle()
 
     Box {
         IconButton(onClick = { menuExpanded = true }) {
             Icon(
-                Icons.Filled.MoreVert,
-                contentDescription = "Backup & export",
+                Icons.AutoMirrored.Filled.Sort,
+                contentDescription = "Sort records",
                 tint = MaterialTheme.colorScheme.onSurfaceVariant,
             )
         }
@@ -127,59 +101,30 @@ fun RecordsOverflowMenu(
             shape = RoundedCornerShape(12.dp),
         ) {
             DropdownMenuItem(
-                text = { Text("Export JSON") },
+                text = { Text("Sort A–Z") },
                 onClick = {
+                    viewModel.setSort(RecordsSort.Alphabetical)
                     menuExpanded = false
-                    viewModel.exportJson { shareFile(it, "application/json") }
                 },
-            )
-            DropdownMenuItem(
-                text = { Text("Import JSON") },
-                onClick = {
-                    menuExpanded = false
-                    importLauncher.launch(arrayOf("application/json", "text/*", "*/*"))
-                },
-            )
-            DropdownMenuItem(
-                text = { Text("Export Excel") },
-                onClick = {
-                    menuExpanded = false
-                    viewModel.exportExcel {
-                        shareFile(
-                            it,
-                            "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
-                        )
+                trailingIcon = {
+                    if (sort == RecordsSort.Alphabetical) {
+                        Icon(Icons.Filled.Check, contentDescription = null)
                     }
                 },
             )
             DropdownMenuItem(
-                text = { Text("Load sample data") },
+                text = { Text("Sort by last updated") },
                 onClick = {
+                    viewModel.setSort(RecordsSort.LastUpdated)
                     menuExpanded = false
-                    viewModel.loadSampleData()
                 },
-            )
-            DropdownMenuItem(
-                text = { Text("Clear all data") },
-                onClick = {
-                    menuExpanded = false
-                    confirmClear = true
+                trailingIcon = {
+                    if (sort == RecordsSort.LastUpdated) {
+                        Icon(Icons.Filled.Check, contentDescription = null)
+                    }
                 },
             )
         }
-    }
-
-    if (confirmClear) {
-        ConfirmDeleteDialog(
-            title = "Clear all data?",
-            body = "This deletes workouts, routines, and custom exercises. The default exercise library will be restored.",
-            confirmLabel = "Clear all",
-            onConfirm = {
-                confirmClear = false
-                viewModel.clearAllData()
-            },
-            onDismiss = { confirmClear = false },
-        )
     }
 }
 

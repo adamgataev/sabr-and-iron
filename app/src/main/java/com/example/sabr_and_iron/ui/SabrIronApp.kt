@@ -11,6 +11,7 @@ import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.Edit
 import androidx.compose.material.icons.filled.Search
+import androidx.compose.material.icons.filled.Settings
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.ExtendedFloatingActionButton
 import androidx.compose.material3.FloatingActionButton
@@ -54,10 +55,11 @@ import com.example.sabr_and_iron.ui.exercises.ExercisesViewModel
 import com.example.sabr_and_iron.ui.navigation.AppDestination
 import com.example.sabr_and_iron.ui.navigation.Routes
 import com.example.sabr_and_iron.ui.records.RecordDetailScreen
-import com.example.sabr_and_iron.ui.records.RecordsOverflowMenu
+import com.example.sabr_and_iron.ui.records.RecordsSortMenu
 import com.example.sabr_and_iron.ui.records.RecordsScreen
 import com.example.sabr_and_iron.ui.routines.RoutineEditorScreen
 import com.example.sabr_and_iron.ui.routines.RoutinesScreen
+import com.example.sabr_and_iron.ui.settings.SettingsScreen
 import com.example.sabr_and_iron.ui.workouts.ActiveExerciseScreen
 import com.example.sabr_and_iron.ui.workouts.WorkoutDetailScreen
 import com.example.sabr_and_iron.ui.workouts.WorkoutFormScreen
@@ -118,6 +120,7 @@ fun SabrIronApp() {
         currentRoute == Routes.ExerciseNew -> "New Exercise"
         currentRoute?.startsWith("exercise/") == true -> "Edit Exercise"
         currentRoute?.startsWith("records/") == true -> "Record"
+        currentRoute == Routes.Settings -> "Settings"
         else -> selectedDestination.title
     }
 
@@ -146,9 +149,15 @@ fun SabrIronApp() {
                         val recordsEntry = navController.getBackStackEntry(
                             AppDestination.Records.route,
                         )
-                        RecordsOverflowMenu(
+                        RecordsSortMenu(
                             viewModel = viewModel(viewModelStoreOwner = recordsEntry),
                         )
+                        IconButton(onClick = { navController.navigate(Routes.Settings) }) {
+                            Icon(
+                                Icons.Filled.Settings,
+                                contentDescription = "Settings",
+                            )
+                        }
                     }
                     if (isExerciseEdit) {
                         TextButton(onClick = { exerciseDeleteTick++ }) {
@@ -299,6 +308,14 @@ fun SabrIronApp() {
                     onOpenRecord = { id ->
                         navController.navigate(Routes.recordDetail(id))
                     },
+                )
+            }
+            composable(Routes.Settings) {
+                val recordsEntry = navController.getBackStackEntry(
+                    AppDestination.Records.route,
+                )
+                SettingsScreen(
+                    viewModel = viewModel(viewModelStoreOwner = recordsEntry),
                 )
             }
             composable(

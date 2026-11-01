@@ -7,4 +7,5 @@ enum class MuscleGroup {
     Arms,
     Legs,
     Core,
+    Cardio,
 }

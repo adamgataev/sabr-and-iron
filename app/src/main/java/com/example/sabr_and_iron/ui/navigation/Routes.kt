@@ -9,6 +9,7 @@ object Routes {
     const val ExerciseNew = "exercise/new"
     const val ExerciseEdit = "exercise/{exerciseId}"
     const val RecordDetail = "records/{exerciseId}"
+    const val Settings = "settings"
 
     fun workoutDetail(workoutId: Long) = "workout/$workoutId"
     fun activeExercise(workoutId: Long, workoutExerciseId: Long) =

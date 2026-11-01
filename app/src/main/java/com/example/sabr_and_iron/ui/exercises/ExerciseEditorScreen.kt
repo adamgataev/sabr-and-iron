@@ -1,11 +1,13 @@
 package com.example.sabr_and_iron.ui.exercises
 
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.ExperimentalLayoutApi
 import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.imePadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.rememberScrollState
@@ -28,6 +30,7 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
@@ -36,6 +39,7 @@ import androidx.lifecycle.viewmodel.compose.viewModel
 import com.example.sabr_and_iron.data.local.model.ExerciseType
 import com.example.sabr_and_iron.data.local.model.MuscleGroup
 import com.example.sabr_and_iron.ui.components.ConfirmDeleteDialog
+import com.example.sabr_and_iron.ui.components.FloatingIslandTopClearance
 import com.example.sabr_and_iron.ui.components.LocalAppSnackbar
 import com.example.sabr_and_iron.ui.theme.ErrorVibrant
 import kotlinx.coroutines.delay
@@ -108,156 +112,172 @@ fun ExerciseEditorScreen(
         modifier = modifier
             .fillMaxSize()
             .imePadding()
-            .verticalScroll(rememberScrollState())
-            .padding(16.dp),
+            .padding(horizontal = 16.dp)
+            .padding(top = 16.dp),
         verticalArrangement = Arrangement.spacedBy(12.dp),
     ) {
-        OutlinedTextField(
-            value = name,
-            onValueChange = { name = it },
-            label = { Text("Name") },
-            modifier = Modifier.fillMaxWidth(),
-            singleLine = true,
-            isError = nameTaken,
-            supportingText = if (nameTaken) {
-                {
-                    Text(
-                        text = "You've already used this name for an exercise",
-                        color = ErrorVibrant,
-                    )
-                }
-            } else {
-                null
-            },
-            colors = OutlinedTextFieldDefaults.colors(
-                errorBorderColor = ErrorVibrant,
-                errorLabelColor = ErrorVibrant,
-                errorCursorColor = ErrorVibrant,
-                errorSupportingTextColor = ErrorVibrant,
-                errorTrailingIconColor = ErrorVibrant,
-            ),
-        )
-        Text("Targeted muscles", style = MaterialTheme.typography.labelLarge)
-        FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-            MuscleGroup.entries.forEach { group ->
-                FilterChip(
-                    selected = group in muscles,
-                    onClick = {
-                        muscles = if (group in muscles) muscles - group else muscles + group
-                    },
-                    label = { Text(group.name) },
-                )
-            }
-        }
-        ExposedDropdownMenuBox(
-            expanded = typeExpanded && !typeLocked,
-            onExpandedChange = { expanded ->
-                if (typeLocked) {
-                    scope.launch {
-                        snackbar.showSnackbar("This field cannot be changed after creation.")
-                    }
-                } else {
-                    typeExpanded = expanded
-                }
-            },
+        Column(
+            modifier = Modifier
+                .weight(1f)
+                .fillMaxWidth()
+                .verticalScroll(rememberScrollState()),
+            verticalArrangement = Arrangement.spacedBy(12.dp),
         ) {
             OutlinedTextField(
-                value = type.label,
-                onValueChange = {},
-                readOnly = true,
-                enabled = !typeLocked,
-                label = { Text("Exercise type") },
-                trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(typeExpanded) },
-                supportingText = if (typeLocked) {
-                    { Text("This field cannot be changed after creation.") }
+                value = name,
+                onValueChange = { name = it },
+                label = { Text("Name") },
+                modifier = Modifier.fillMaxWidth(),
+                singleLine = true,
+                isError = nameTaken,
+                supportingText = if (nameTaken) {
+                    {
+                        Text(
+                            text = "You've already used this name for an exercise",
+                            color = ErrorVibrant,
+                        )
+                    }
                 } else {
                     null
                 },
-                modifier = Modifier
-                    .menuAnchor()
-                    .fillMaxWidth(),
+                colors = OutlinedTextFieldDefaults.colors(
+                    errorBorderColor = ErrorVibrant,
+                    errorLabelColor = ErrorVibrant,
+                    errorCursorColor = ErrorVibrant,
+                    errorSupportingTextColor = ErrorVibrant,
+                    errorTrailingIconColor = ErrorVibrant,
+                ),
             )
-            if (!typeLocked) {
-                ExposedDropdownMenu(
-                    expanded = typeExpanded,
-                    onDismissRequest = { typeExpanded = false },
-                ) {
-                    ExerciseType.entries.forEach { option ->
-                        DropdownMenuItem(
-                            text = { Text(option.label) },
-                            onClick = {
-                                type = option
-                                typeExpanded = false
-                            },
-                        )
+            Text("Targeted muscles", style = MaterialTheme.typography.labelLarge)
+            FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                MuscleGroup.entries.forEach { group ->
+                    FilterChip(
+                        selected = group in muscles,
+                        onClick = {
+                            muscles = if (group in muscles) muscles - group else muscles + group
+                        },
+                        label = { Text(group.name) },
+                    )
+                }
+            }
+            ExposedDropdownMenuBox(
+                expanded = typeExpanded && !typeLocked,
+                onExpandedChange = { expanded ->
+                    if (typeLocked) {
+                        scope.launch {
+                            snackbar.showSnackbar("This field cannot be changed after creation.")
+                        }
+                    } else {
+                        typeExpanded = expanded
+                    }
+                },
+            ) {
+                OutlinedTextField(
+                    value = type.label,
+                    onValueChange = {},
+                    readOnly = true,
+                    enabled = !typeLocked,
+                    label = { Text("Exercise type") },
+                    trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(typeExpanded) },
+                    supportingText = if (typeLocked) {
+                        { Text("This field cannot be changed after creation.") }
+                    } else {
+                        null
+                    },
+                    modifier = Modifier
+                        .menuAnchor()
+                        .fillMaxWidth(),
+                )
+                if (!typeLocked) {
+                    ExposedDropdownMenu(
+                        expanded = typeExpanded,
+                        onDismissRequest = { typeExpanded = false },
+                    ) {
+                        ExerciseType.entries.forEach { option ->
+                            DropdownMenuItem(
+                                text = { Text(option.label) },
+                                onClick = {
+                                    type = option
+                                    typeExpanded = false
+                                },
+                            )
+                        }
                     }
                 }
             }
-        }
-        if (type.usesStartingResistance) {
-            OutlinedTextField(
-                value = starting,
-                onValueChange = { starting = it },
-                label = { Text("Starting resistance (kg)") },
-                modifier = Modifier.fillMaxWidth(),
-                keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal),
-                singleLine = true,
-                supportingText = {
-                    Text("e.g. barbell weight before plates")
-                },
-            )
-        } else if (type.usesBodyWeight) {
-            Text(
-                text = when (type) {
-                    ExerciseType.WeightedBodyweight ->
-                        "Effective load = workout body weight + added weight."
-                    ExerciseType.Assisted ->
-                        "Effective load = workout body weight − assistance."
-                    else -> ""
-                },
-                style = MaterialTheme.typography.bodySmall,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
-            )
-        } else if (type.usesDistance) {
-            Text(
-                text = "Log distance (km) and duration in workouts.",
-                style = MaterialTheme.typography.bodySmall,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
-            )
-        } else if (type.usesDuration) {
-            Text(
-                text = "Log hold / effort duration in workouts.",
-                style = MaterialTheme.typography.bodySmall,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
-            )
-        }
-        OutlinedTextField(
-            value = rest,
-            onValueChange = { rest = it },
-            label = { Text("Default rest (seconds)") },
-            modifier = Modifier.fillMaxWidth(),
-            keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
-            singleLine = true,
-        )
-        Button(
-            onClick = {
-                if (name.isBlank() || muscles.isEmpty() || nameTaken || checkingName) return@Button
-                viewModel.save(
-                    id = exerciseId ?: 0L,
-                    name = name,
-                    muscles = muscles.toList(),
-                    type = type,
-                    startingResistanceKg = starting.toDoubleOrNull()
-                        .takeIf { type.usesStartingResistance },
-                    defaultRestSeconds = rest.toIntOrNull(),
-                    onDone = { onDone() },
-                    onError = { nameTaken = true },
+            if (type.usesStartingResistance) {
+                OutlinedTextField(
+                    value = starting,
+                    onValueChange = { starting = it },
+                    label = { Text("Starting resistance (kg)") },
+                    modifier = Modifier.fillMaxWidth(),
+                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal),
+                    singleLine = true,
+                    supportingText = {
+                        Text("e.g. barbell weight before plates")
+                    },
                 )
-            },
-            modifier = Modifier.fillMaxWidth(),
-            enabled = name.isNotBlank() && muscles.isNotEmpty() && !nameTaken && !checkingName,
+            } else if (type.usesBodyWeight) {
+                Text(
+                    text = when (type) {
+                        ExerciseType.WeightedBodyweight ->
+                            "Effective load = workout body weight + added weight."
+                        ExerciseType.Assisted ->
+                            "Effective load = workout body weight − assistance."
+                        else -> ""
+                    },
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+            } else if (type.usesDistance) {
+                Text(
+                    text = "Log distance (km) and duration in workouts.",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+            } else if (type.usesDuration) {
+                Text(
+                    text = "Log hold / effort duration in workouts.",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+            }
+            OutlinedTextField(
+                value = rest,
+                onValueChange = { rest = it },
+                label = { Text("Default rest (seconds)") },
+                modifier = Modifier.fillMaxWidth(),
+                keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
+                singleLine = true,
+            )
+        }
+        Box(
+            modifier = Modifier
+                .fillMaxWidth()
+                .height(FloatingIslandTopClearance),
         ) {
-            Text("Save")
+            Button(
+                onClick = {
+                    if (name.isBlank() || muscles.isEmpty() || nameTaken || checkingName) return@Button
+                    viewModel.save(
+                        id = exerciseId ?: 0L,
+                        name = name,
+                        muscles = muscles.toList(),
+                        type = type,
+                        startingResistanceKg = starting.toDoubleOrNull()
+                            .takeIf { type.usesStartingResistance },
+                        defaultRestSeconds = rest.toIntOrNull(),
+                        onDone = { onDone() },
+                        onError = { nameTaken = true },
+                    )
+                },
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .align(Alignment.TopCenter),
+                enabled = name.isNotBlank() && muscles.isNotEmpty() && !nameTaken && !checkingName,
+            ) {
+                Text("Save")
+            }
         }
     }
 

@@ -12,9 +12,16 @@ import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
 import java.io.File
+
+enum class RecordsSort {
+    Alphabetical,
+    LastUpdated,
+}
 
 class RecordsViewModel(application: Application) : AndroidViewModel(application) {
     private val app = application as SabrIronApplication
@@ -22,11 +29,25 @@ class RecordsViewModel(application: Application) : AndroidViewModel(application)
     private val backupRepository = app.backupRepository
     private val dummyDataSeeder = app.dummyDataSeeder
 
-    val records: StateFlow<List<PersonalRecord>> = recordsRepository.observePersonalRecords()
-        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), emptyList())
+    private val _sort = MutableStateFlow(RecordsSort.Alphabetical)
+    val sort: StateFlow<RecordsSort> = _sort.asStateFlow()
+
+    val records: StateFlow<List<PersonalRecord>> = combine(
+        recordsRepository.observePersonalRecords(),
+        _sort,
+    ) { list, sortMode ->
+        when (sortMode) {
+            RecordsSort.Alphabetical -> list.sortedBy { it.exerciseName.lowercase() }
+            RecordsSort.LastUpdated -> list.sortedByDescending { it.performedAt }
+        }
+    }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), emptyList())
 
     private val _message = MutableStateFlow<String?>(null)
     val message: StateFlow<String?> = _message
+
+    fun setSort(sort: RecordsSort) {
+        _sort.value = sort
+    }
 
     fun observeProgress(exerciseId: Long): Flow<List<ProgressPoint>> =
         recordsRepository.observeProgress(exerciseId)
