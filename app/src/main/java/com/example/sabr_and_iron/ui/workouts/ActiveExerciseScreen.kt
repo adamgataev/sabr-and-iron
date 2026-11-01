@@ -8,6 +8,7 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.imePadding
@@ -31,6 +32,7 @@ import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.OutlinedTextField
+import androidx.compose.material3.OutlinedTextFieldDefaults
 import androidx.compose.material3.SecondaryTabRow
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Tab
@@ -397,38 +399,14 @@ fun ActiveExerciseScreen(
                         onDistanceKmChange = { distanceKm = it },
                         startingResistanceKg = workoutExercise?.startingResistanceKg,
                         bodyWeightKg = bodyWeight,
-                    )
-                    Row(
-                        verticalAlignment = Alignment.CenterVertically,
-                        horizontalArrangement = Arrangement.spacedBy(12.dp),
-                    ) {
-                        Text(
-                            "Difficulty",
-                            style = MaterialTheme.typography.labelLarge,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant,
-                        )
-                        IconButton(
-                            onClick = { showDifficultyPicker = true },
-                            modifier = Modifier
-                                .size(48.dp)
-                                .border(
-                                    width = 1.dp,
-                                    color = MaterialTheme.colorScheme.outline,
-                                    shape = CircleShape,
-                                ),
-                        ) {
-                            Icon(
-                                imageVector = difficulty.icon,
-                                contentDescription = difficulty.label,
-                                tint = MaterialTheme.colorScheme.primary,
+                        inlineDifficulty = true,
+                        difficultyContent = {
+                            DifficultyIconButton(
+                                difficulty = difficulty,
+                                onClick = { showDifficultyPicker = true },
                             )
-                        }
-                        Text(
-                            difficulty.label,
-                            style = MaterialTheme.typography.bodyMedium,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant,
-                        )
-                    }
+                        },
+                    )
                     Button(
                         onClick = { submitSet() },
                         modifier = Modifier.fillMaxWidth(),
@@ -616,6 +594,11 @@ private fun SetCard(
     onEdit: () -> Unit,
     onDelete: () -> Unit,
 ) {
+    val paceLine = if (type == ExerciseType.DistanceTime) {
+        formatSetPace(set)
+    } else {
+        null
+    }
     AppCard {
         Box(modifier = Modifier.fillMaxWidth()) {
             Column(
@@ -634,6 +617,13 @@ private fun SetCard(
                     style = MaterialTheme.typography.titleMedium,
                     color = MaterialTheme.colorScheme.onSurface,
                 )
+                if (paceLine != null) {
+                    Text(
+                        text = paceLine,
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    )
+                }
             }
             Icon(
                 imageVector = set.difficulty.icon,
@@ -751,38 +741,14 @@ private fun EditSetDialog(
                         onDistanceKmChange = { distanceKm = it },
                         startingResistanceKg = startingResistanceKg,
                         bodyWeightKg = bodyWeightKg,
-                    )
-                    Row(
-                        verticalAlignment = Alignment.CenterVertically,
-                        horizontalArrangement = Arrangement.spacedBy(12.dp),
-                    ) {
-                        Text(
-                            "Difficulty",
-                            style = MaterialTheme.typography.labelLarge,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant,
-                        )
-                        IconButton(
-                            onClick = { showDifficultyPicker = true },
-                            modifier = Modifier
-                                .size(48.dp)
-                                .border(
-                                    width = 1.dp,
-                                    color = MaterialTheme.colorScheme.outline,
-                                    shape = CircleShape,
-                                ),
-                        ) {
-                            Icon(
-                                imageVector = difficulty.icon,
-                                contentDescription = difficulty.label,
-                                tint = MaterialTheme.colorScheme.primary,
+                        inlineDifficulty = false,
+                        difficultyContent = {
+                            DifficultyIconButton(
+                                difficulty = difficulty,
+                                onClick = { showDifficultyPicker = true },
                             )
-                        }
-                        Text(
-                            difficulty.label,
-                            style = MaterialTheme.typography.bodyMedium,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant,
-                        )
-                    }
+                        },
+                    )
                 }
                 Row(
                     modifier = Modifier.fillMaxWidth(),
@@ -889,6 +855,29 @@ private fun HistoryWorkoutCard(group: HistoryWorkoutGroup) {
 }
 
 @Composable
+private fun DifficultyIconButton(
+    difficulty: SetDifficulty,
+    onClick: () -> Unit,
+) {
+    IconButton(
+        onClick = onClick,
+        modifier = Modifier
+            .size(OutlinedTextFieldDefaults.MinHeight)
+            .border(
+                width = 1.dp,
+                color = MaterialTheme.colorScheme.outline,
+                shape = CircleShape,
+            ),
+    ) {
+        Icon(
+            imageVector = difficulty.icon,
+            contentDescription = difficulty.label,
+            tint = MaterialTheme.colorScheme.primary,
+        )
+    }
+}
+
+@Composable
 private fun SetInputFields(
     exerciseType: ExerciseType,
     addedWeight: String,
@@ -903,13 +892,18 @@ private fun SetInputFields(
     onDistanceKmChange: (String) -> Unit,
     startingResistanceKg: Double?,
     bodyWeightKg: Double?,
+    inlineDifficulty: Boolean,
+    difficultyContent: @Composable () -> Unit,
 ) {
     when (exerciseType) {
         ExerciseType.Regular,
         ExerciseType.WeightedBodyweight,
         ExerciseType.Assisted,
         -> {
-            Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+            Row(
+                horizontalArrangement = Arrangement.spacedBy(8.dp),
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
                 OutlinedTextField(
                     value = addedWeight,
                     onValueChange = onAddedWeightChange,
@@ -929,10 +923,13 @@ private fun SetInputFields(
                     value = reps,
                     onValueChange = onRepsChange,
                     label = { Text("Reps") },
-                    modifier = Modifier.weight(1f),
+                    modifier = Modifier.weight(if (inlineDifficulty) 0.55f else 1f),
                     keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
                     singleLine = true,
                 )
+                if (inlineDifficulty) {
+                    difficultyContent()
+                }
             }
             val preview = addedWeight.toDoubleOrNull()?.let { weight ->
                 effectiveLoadKg(
@@ -942,49 +939,147 @@ private fun SetInputFields(
                     bodyWeightKg = bodyWeightKg,
                 )
             }
-            if (preview != null) {
-                Text(
-                    "Effective load: ${formatKg(preview)} kg",
-                    color = MaterialTheme.colorScheme.primary,
-                    modifier = Modifier.padding(top = 8.dp),
-                )
-            }
-        }
-        ExerciseType.TimeOnly -> {
-            DurationFields(
-                minutes = durationMinutes,
-                seconds = durationSeconds,
-                onMinutesChange = onDurationMinutesChange,
-                onSecondsChange = onDurationSecondsChange,
-            )
-        }
-        ExerciseType.DistanceTime -> {
-            OutlinedTextField(
-                value = distanceKm,
-                onValueChange = onDistanceKmChange,
-                label = { Text("Distance (km)") },
-                modifier = Modifier.fillMaxWidth(),
-                keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal),
-                singleLine = true,
-            )
-            DurationFields(
-                minutes = durationMinutes,
-                seconds = durationSeconds,
-                onMinutesChange = onDurationMinutesChange,
-                onSecondsChange = onDurationSecondsChange,
-            )
-            val meters = distanceKm.toDoubleOrNull()?.times(1000.0)
-            val minutes = durationMinutes.toIntOrNull() ?: 0
-            val seconds = durationSeconds.toIntOrNull() ?: 0
-            val duration = (minutes * 60 + seconds).takeIf { it > 0 }
-            if (meters != null && duration != null) {
-                formatPace(meters, duration)?.let { pace ->
+            if (inlineDifficulty) {
+                if (preview != null) {
                     Text(
-                        "Pace: $pace",
+                        "Effective load: ${formatKg(preview)} kg",
                         color = MaterialTheme.colorScheme.primary,
                         modifier = Modifier.padding(top = 8.dp),
                     )
                 }
+            } else {
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(top = 8.dp),
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                ) {
+                    if (preview != null) {
+                        Text(
+                            "Effective load: ${formatKg(preview)} kg",
+                            color = MaterialTheme.colorScheme.primary,
+                            modifier = Modifier.weight(1f),
+                        )
+                    } else {
+                        Spacer(modifier = Modifier.weight(1f))
+                    }
+                    difficultyContent()
+                }
+            }
+        }
+        ExerciseType.TimeOnly -> {
+            if (inlineDifficulty) {
+                Row(
+                    horizontalArrangement = Arrangement.spacedBy(8.dp),
+                    verticalAlignment = Alignment.CenterVertically,
+                ) {
+                    OutlinedTextField(
+                        value = durationMinutes,
+                        onValueChange = onDurationMinutesChange,
+                        label = { Text("Minutes") },
+                        modifier = Modifier.weight(1f),
+                        keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
+                        singleLine = true,
+                    )
+                    OutlinedTextField(
+                        value = durationSeconds,
+                        onValueChange = onDurationSecondsChange,
+                        label = { Text("Seconds") },
+                        modifier = Modifier.weight(1f),
+                        keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
+                        singleLine = true,
+                    )
+                    difficultyContent()
+                }
+            } else {
+                DurationFields(
+                    minutes = durationMinutes,
+                    seconds = durationSeconds,
+                    onMinutesChange = onDurationMinutesChange,
+                    onSecondsChange = onDurationSecondsChange,
+                )
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(top = 8.dp),
+                    horizontalArrangement = Arrangement.End,
+                    verticalAlignment = Alignment.CenterVertically,
+                ) {
+                    difficultyContent()
+                }
+            }
+        }
+        ExerciseType.DistanceTime -> {
+            if (inlineDifficulty) {
+                Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                    OutlinedTextField(
+                        value = distanceKm,
+                        onValueChange = onDistanceKmChange,
+                        label = { Text("Distance (km)") },
+                        modifier = Modifier.weight(1f),
+                        keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal),
+                        singleLine = true,
+                    )
+                    OutlinedTextField(
+                        value = durationMinutes,
+                        onValueChange = onDurationMinutesChange,
+                        label = { Text("Minutes") },
+                        modifier = Modifier.weight(1f),
+                        keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
+                        singleLine = true,
+                    )
+                    OutlinedTextField(
+                        value = durationSeconds,
+                        onValueChange = onDurationSecondsChange,
+                        label = { Text("Seconds") },
+                        modifier = Modifier.weight(1f),
+                        keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
+                        singleLine = true,
+                    )
+                }
+            } else {
+                OutlinedTextField(
+                    value = distanceKm,
+                    onValueChange = onDistanceKmChange,
+                    label = { Text("Distance (km)") },
+                    modifier = Modifier.fillMaxWidth(),
+                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal),
+                    singleLine = true,
+                )
+                DurationFields(
+                    minutes = durationMinutes,
+                    seconds = durationSeconds,
+                    onMinutesChange = onDurationMinutesChange,
+                    onSecondsChange = onDurationSecondsChange,
+                )
+            }
+            val meters = distanceKm.toDoubleOrNull()?.times(1000.0)
+            val minutes = durationMinutes.toIntOrNull() ?: 0
+            val seconds = durationSeconds.toIntOrNull() ?: 0
+            val duration = (minutes * 60 + seconds).takeIf { it > 0 }
+            val pace = if (meters != null && duration != null) {
+                formatPace(meters, duration)
+            } else {
+                null
+            }
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(top = 8.dp),
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.SpaceBetween,
+            ) {
+                if (pace != null) {
+                    Text(
+                        "Pace: $pace",
+                        color = MaterialTheme.colorScheme.primary,
+                        modifier = Modifier.weight(1f),
+                    )
+                } else {
+                    Spacer(modifier = Modifier.weight(1f))
+                }
+                difficultyContent()
             }
         }
     }
@@ -1047,14 +1142,15 @@ private fun formatSetSummary(
         ExerciseType.DistanceTime -> {
             val distance = set.distanceMeters?.let { formatDistanceKm(it) } ?: "—"
             val duration = set.durationSeconds?.let { formatDuration(it) } ?: "—"
-            val pace = if (set.distanceMeters != null && set.durationSeconds != null) {
-                formatPace(set.distanceMeters, set.durationSeconds)?.let { " · $it" }.orEmpty()
-            } else {
-                ""
-            }
-            "$distance in $duration$pace"
+            "$distance in $duration"
         }
     }
+
+private fun formatSetPace(set: SetEntity): String? {
+    val meters = set.distanceMeters ?: return null
+    val duration = set.durationSeconds ?: return null
+    return formatPace(meters, duration)
+}
 
 private fun formatHistoryLine(entry: ExerciseHistoryEntry): String =
     when (entry.exerciseType) {
