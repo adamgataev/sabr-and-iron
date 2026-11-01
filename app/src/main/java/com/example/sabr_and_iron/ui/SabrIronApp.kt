@@ -8,7 +8,9 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
+import androidx.compose.material.icons.automirrored.filled.ViewList
 import androidx.compose.material.icons.filled.Add
+import androidx.compose.material.icons.filled.CalendarMonth
 import androidx.compose.material.icons.filled.Edit
 import androidx.compose.material.icons.filled.Search
 import androidx.compose.material.icons.filled.Settings
@@ -39,6 +41,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.unit.dp
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.navigation.NavType
 import androidx.navigation.compose.NavHost
@@ -64,6 +67,8 @@ import com.example.sabr_and_iron.ui.workouts.ActiveExerciseScreen
 import com.example.sabr_and_iron.ui.workouts.WorkoutDetailScreen
 import com.example.sabr_and_iron.ui.workouts.WorkoutFormScreen
 import com.example.sabr_and_iron.ui.workouts.WorkoutsScreen
+import com.example.sabr_and_iron.ui.workouts.WorkoutsViewMode
+import com.example.sabr_and_iron.ui.workouts.WorkoutsViewModel
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -152,6 +157,28 @@ fun SabrIronApp() {
                         RecordsSortMenu(
                             viewModel = viewModel(viewModelStoreOwner = recordsEntry),
                         )
+                    }
+                    if (currentRoute == AppDestination.Workouts.route) {
+                        val workoutsEntry = navController.getBackStackEntry(
+                            AppDestination.Workouts.route,
+                        )
+                        val workoutsVm: WorkoutsViewModel =
+                            viewModel(viewModelStoreOwner = workoutsEntry)
+                        val workoutsViewMode by workoutsVm.viewMode.collectAsStateWithLifecycle()
+                        IconButton(onClick = { workoutsVm.toggleViewMode() }) {
+                            Icon(
+                                imageVector = if (workoutsViewMode == WorkoutsViewMode.List) {
+                                    Icons.Filled.CalendarMonth
+                                } else {
+                                    Icons.AutoMirrored.Filled.ViewList
+                                },
+                                contentDescription = if (workoutsViewMode == WorkoutsViewMode.List) {
+                                    "Calendar view"
+                                } else {
+                                    "List view"
+                                },
+                            )
+                        }
                     }
                     if (isTabRoot) {
                         IconButton(onClick = { navController.navigate(Routes.Settings) }) {

@@ -11,8 +11,14 @@ import com.example.sabr_and_iron.data.repository.AddExercisesResult
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
+
+enum class WorkoutsViewMode {
+    List,
+    Calendar,
+}
 
 class WorkoutsViewModel(application: Application) : AndroidViewModel(application) {
     private val app = application as SabrIronApplication
@@ -23,8 +29,18 @@ class WorkoutsViewModel(application: Application) : AndroidViewModel(application
     val summaries = workoutRepository.observeSummaries()
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), emptyList())
 
+    private val _viewMode = MutableStateFlow(WorkoutsViewMode.Calendar)
+    val viewMode: StateFlow<WorkoutsViewMode> = _viewMode.asStateFlow()
+
     private val _message = MutableStateFlow<String?>(null)
     val message: StateFlow<String?> = _message
+
+    fun toggleViewMode() {
+        _viewMode.value = when (_viewMode.value) {
+            WorkoutsViewMode.List -> WorkoutsViewMode.Calendar
+            WorkoutsViewMode.Calendar -> WorkoutsViewMode.List
+        }
+    }
 
     fun clearMessage() {
         _message.value = null
