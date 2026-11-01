@@ -45,6 +45,7 @@ import sh.calvin.reorderable.rememberReorderableLazyListState
 fun RoutineEditorScreen(
     routineId: Long?,
     onDone: () -> Unit,
+    deleteTick: Int = 0,
     modifier: Modifier = Modifier,
     viewModel: RoutinesViewModel = viewModel(),
 ) {
@@ -73,6 +74,12 @@ fun RoutineEditorScreen(
             selected.clear()
             selected.addAll(it.exercises.map { item -> item.exercise })
             nameTaken = false
+        }
+    }
+
+    LaunchedEffect(deleteTick) {
+        if (deleteTick > 0 && detail != null) {
+            confirmDelete = true
         }
     }
 
@@ -194,14 +201,6 @@ fun RoutineEditorScreen(
                     enabled = name.isNotBlank() && !nameTaken && !checkingName,
                 ) {
                     Text("Save")
-                }
-                if (detail != null) {
-                    TextButton(
-                        onClick = { confirmDelete = true },
-                        modifier = Modifier.fillMaxWidth(),
-                    ) {
-                        Text("Delete", color = MaterialTheme.colorScheme.error)
-                    }
                 }
             }
         }

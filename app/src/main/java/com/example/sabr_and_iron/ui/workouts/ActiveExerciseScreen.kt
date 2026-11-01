@@ -310,7 +310,7 @@ fun ActiveExerciseScreen(
                         .fillMaxSize()
                         .imePadding()
                         .verticalScroll(rememberScrollState())
-                        .padding(16.dp),
+                        .padding(start = 16.dp, end = 16.dp, top = 16.dp, bottom = 40.dp),
                     verticalArrangement = Arrangement.spacedBy(12.dp),
                 ) {
                     Text(exerciseName, style = MaterialTheme.typography.headlineSmall)

@@ -82,16 +82,30 @@ fun SabrIronApp() {
     val isWorkoutDetail = currentRoute?.startsWith("workout/") == true &&
         currentRoute?.contains("/exercise/") != true &&
         currentRoute != Routes.WorkoutNew
+    val isExerciseEdit = currentRoute?.startsWith("exercise/") == true &&
+        currentRoute != Routes.ExerciseNew
+    val isRoutineEdit = currentRoute?.startsWith("routine/") == true &&
+        currentRoute != Routes.RoutineNew
 
     var workoutEditTick by remember { mutableIntStateOf(0) }
     var workoutEditing by remember { mutableStateOf(false) }
+    var workoutDeleteTick by remember { mutableIntStateOf(0) }
+    var exerciseDeleteTick by remember { mutableIntStateOf(0) }
+    var routineDeleteTick by remember { mutableIntStateOf(0) }
     val snackbarHostState = remember { SnackbarHostState() }
 
     LaunchedEffect(isWorkoutDetail) {
         if (!isWorkoutDetail) {
             workoutEditing = false
             workoutEditTick = 0
+            workoutDeleteTick = 0
         }
+    }
+    LaunchedEffect(isExerciseEdit) {
+        if (!isExerciseEdit) exerciseDeleteTick = 0
+    }
+    LaunchedEffect(isRoutineEdit) {
+        if (!isRoutineEdit) routineDeleteTick = 0
     }
 
     val title = when {
@@ -136,6 +150,16 @@ fun SabrIronApp() {
                             viewModel = viewModel(viewModelStoreOwner = recordsEntry),
                         )
                     }
+                    if (isExerciseEdit) {
+                        TextButton(onClick = { exerciseDeleteTick++ }) {
+                            Text("Delete exercise", color = MaterialTheme.colorScheme.error)
+                        }
+                    }
+                    if (isRoutineEdit) {
+                        TextButton(onClick = { routineDeleteTick++ }) {
+                            Text("Delete routine", color = MaterialTheme.colorScheme.error)
+                        }
+                    }
                     if (isWorkoutDetail) {
                         if (workoutEditing) {
                             TextButton(onClick = { workoutEditTick++ }) {
@@ -144,6 +168,9 @@ fun SabrIronApp() {
                         } else {
                             IconButton(onClick = { workoutEditTick++ }) {
                                 Icon(Icons.Filled.Edit, contentDescription = "Edit workout")
+                            }
+                            TextButton(onClick = { workoutDeleteTick++ }) {
+                                Text("Delete workout", color = MaterialTheme.colorScheme.error)
                             }
                         }
                     }
@@ -312,6 +339,7 @@ fun SabrIronApp() {
                 WorkoutDetailScreen(
                     workoutId = workoutId,
                     editTick = workoutEditTick,
+                    deleteTick = workoutDeleteTick,
                     onEditingChange = { workoutEditing = it },
                     onOpenExercise = { weId ->
                         navController.navigate(Routes.activeExercise(workoutId, weId))
@@ -342,6 +370,7 @@ fun SabrIronApp() {
                 val id = entry.arguments?.getLong("routineId") ?: return@composable
                 RoutineEditorScreen(
                     routineId = id,
+                    deleteTick = routineDeleteTick,
                     onDone = { navController.popBackStack() },
                 )
             }
@@ -358,6 +387,7 @@ fun SabrIronApp() {
                 val id = entry.arguments?.getLong("exerciseId") ?: return@composable
                 ExerciseEditorScreen(
                     exerciseId = id,
+                    deleteTick = exerciseDeleteTick,
                     onDone = { navController.popBackStack() },
                 )
             }

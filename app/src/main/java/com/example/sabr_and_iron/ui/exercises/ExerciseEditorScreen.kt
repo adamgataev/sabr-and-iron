@@ -21,7 +21,6 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.OutlinedTextFieldDefaults
 import androidx.compose.material3.Text
-import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
@@ -48,6 +47,7 @@ import kotlinx.coroutines.launch
 fun ExerciseEditorScreen(
     exerciseId: Long?,
     onDone: () -> Unit,
+    deleteTick: Int = 0,
     modifier: Modifier = Modifier,
     viewModel: ExercisesViewModel = viewModel(),
 ) {
@@ -81,6 +81,12 @@ fun ExerciseEditorScreen(
             starting = exercise.startingResistanceKg?.toString().orEmpty()
             rest = exercise.defaultRestSeconds?.toString().orEmpty()
             nameTaken = false
+        }
+    }
+
+    LaunchedEffect(deleteTick) {
+        if (deleteTick > 0 && existing != null) {
+            confirmDelete = true
         }
     }
 
@@ -252,14 +258,6 @@ fun ExerciseEditorScreen(
             enabled = name.isNotBlank() && muscles.isNotEmpty() && !nameTaken && !checkingName,
         ) {
             Text("Save")
-        }
-        if (existing != null) {
-            TextButton(
-                onClick = { confirmDelete = true },
-                modifier = Modifier.fillMaxWidth(),
-            ) {
-                Text("Delete", color = MaterialTheme.colorScheme.error)
-            }
         }
     }
 

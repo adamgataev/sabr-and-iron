@@ -85,9 +85,9 @@ fun ReorderableCollectionItemScope.ReorderableExerciseRow(
                 modifier = Modifier.weight(1f),
             )
             if (onRemove != null) {
+                // Always clickable so parent can explain why remove is blocked.
                 IconButton(
                     onClick = onRemove,
-                    enabled = removeEnabled,
                     modifier = Modifier.size(40.dp),
                 ) {
                     Icon(

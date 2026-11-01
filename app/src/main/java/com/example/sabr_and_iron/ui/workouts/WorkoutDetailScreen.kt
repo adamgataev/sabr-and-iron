@@ -25,6 +25,7 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateListOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.input.KeyboardType
@@ -38,6 +39,7 @@ import com.example.sabr_and_iron.ui.components.LocalAppSnackbar
 import com.example.sabr_and_iron.ui.components.ReorderableExerciseRow
 import com.example.sabr_and_iron.ui.util.formatDateTime
 import com.example.sabr_and_iron.ui.util.formatKg
+import kotlinx.coroutines.launch
 import sh.calvin.reorderable.ReorderableItem
 import sh.calvin.reorderable.rememberReorderableLazyListState
 
@@ -45,6 +47,7 @@ import sh.calvin.reorderable.rememberReorderableLazyListState
 fun WorkoutDetailScreen(
     workoutId: Long,
     editTick: Int,
+    deleteTick: Int = 0,
     onEditingChange: (Boolean) -> Unit,
     onOpenExercise: (workoutExerciseId: Long) -> Unit,
     onDeleted: () -> Unit,
@@ -62,6 +65,7 @@ fun WorkoutDetailScreen(
     var confirmRemove by remember { mutableStateOf<WorkoutExerciseWithSets?>(null) }
     var draggingId by remember { mutableStateOf<Long?>(null) }
     val snackbar = LocalAppSnackbar.current
+    val scope = rememberCoroutineScope()
     val editOrder = remember { mutableStateListOf<WorkoutExerciseWithSets>() }
     val presentExerciseIds = remember(detail?.exercises) {
         detail?.exercises.orEmpty().map { it.workoutExercise.exerciseId }.toSet()
@@ -74,6 +78,12 @@ fun WorkoutDetailScreen(
         message?.let {
             snackbar.showSnackbar(it)
             viewModel.clearMessage()
+        }
+    }
+
+    LaunchedEffect(deleteTick) {
+        if (deleteTick > 0) {
+            confirmDelete = true
         }
     }
 
@@ -203,7 +213,17 @@ fun WorkoutDetailScreen(
                                 name = item.exerciseName,
                                 isDragging = isDragging,
                                 dimmed = draggingId != null && !isDragging,
-                                onRemove = { if (canRemove) confirmRemove = item },
+                                onRemove = {
+                                    if (canRemove) {
+                                        confirmRemove = item
+                                    } else {
+                                        scope.launch {
+                                            snackbar.showSnackbar(
+                                                "Remove all sets from this exercise before removing it from the workout.",
+                                            )
+                                        }
+                                    }
+                                },
                                 removeEnabled = canRemove,
                             )
                         }
@@ -228,14 +248,6 @@ fun WorkoutDetailScreen(
                 }
             }
 
-        if (!editing) {
-            TextButton(
-                onClick = { confirmDelete = true },
-                modifier = Modifier.fillMaxWidth(),
-            ) {
-                Text("Delete workout", color = MaterialTheme.colorScheme.error)
-            }
-        }
     }
 
     if (confirmDelete) {
