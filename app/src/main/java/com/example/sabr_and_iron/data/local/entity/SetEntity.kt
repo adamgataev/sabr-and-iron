@@ -21,8 +21,14 @@ import com.example.sabr_and_iron.data.local.model.SetDifficulty
 data class SetEntity(
     @PrimaryKey(autoGenerate = true) val id: Long = 0,
     val workoutExerciseId: Long,
-    val addedWeightKg: Double,
-    val reps: Int,
+    /** Plates / added load / assistance kg. 0 when not used (time / distance sets). */
+    val addedWeightKg: Double = 0.0,
+    /** Reps for load types. 0 when not used. */
+    val reps: Int = 0,
     val difficulty: SetDifficulty,
     val position: Int,
+    /** Hold or cardio duration. */
+    val durationSeconds: Int? = null,
+    /** Distance in meters (e.g. run / walk). */
+    val distanceMeters: Double? = null,
 )

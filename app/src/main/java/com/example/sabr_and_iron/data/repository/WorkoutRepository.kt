@@ -61,6 +61,9 @@ class WorkoutRepository(
     fun observeWorkoutExercise(workoutExerciseId: Long): Flow<WorkoutExerciseEntity?> =
         workoutDao.observeWorkoutExercise(workoutExerciseId)
 
+    fun observeWorkout(workoutId: Long): Flow<WorkoutEntity?> =
+        workoutDao.observeById(workoutId)
+
     fun observeSets(workoutExerciseId: Long): Flow<List<SetEntity>> =
         workoutDao.observeSets(workoutExerciseId)
 
@@ -113,10 +116,14 @@ class WorkoutRepository(
         workoutDao.replaceWorkoutExercises(workoutId, items)
     }
 
-    suspend fun addExerciseToWorkout(workoutId: Long, exerciseId: Long): Long {
+    suspend fun addExerciseToWorkout(workoutId: Long, exerciseId: Long): AddExerciseResult {
         val existing = workoutDao.getWorkoutExercises(workoutId)
+        if (existing.any { it.exerciseId == exerciseId }) {
+            val name = exerciseDao.getById(exerciseId)?.name ?: "Exercise"
+            return AddExerciseResult.AlreadyExists(name)
+        }
         val exercise = exerciseDao.getById(exerciseId)
-        return workoutDao.insertExercise(
+        val id = workoutDao.insertExercise(
             WorkoutExerciseEntity(
                 workoutId = workoutId,
                 exerciseId = exerciseId,
@@ -124,6 +131,42 @@ class WorkoutRepository(
                 startingResistanceKg = exercise?.startingResistanceKg,
             ),
         )
+        return AddExerciseResult.Added(id)
+    }
+
+    /**
+     * Appends [exerciseIds] that are not already in the workout.
+     * Returns names of exercises that were skipped because they were already present.
+     */
+    suspend fun addExercisesSkippingDuplicates(
+        workoutId: Long,
+        exerciseIds: List<Long>,
+    ): AddExercisesResult {
+        val existing = workoutDao.getWorkoutExercises(workoutId)
+        val presentIds = existing.map { it.exerciseId }.toMutableSet()
+        var nextPosition = existing.size
+        val skippedNames = mutableListOf<String>()
+        var addedCount = 0
+        for (exerciseId in exerciseIds) {
+            val exercise = exerciseDao.getById(exerciseId)
+            val name = exercise?.name ?: "Exercise"
+            if (exerciseId in presentIds) {
+                skippedNames += name
+                continue
+            }
+            workoutDao.insertExercise(
+                WorkoutExerciseEntity(
+                    workoutId = workoutId,
+                    exerciseId = exerciseId,
+                    position = nextPosition,
+                    startingResistanceKg = exercise?.startingResistanceKg,
+                ),
+            )
+            presentIds += exerciseId
+            nextPosition++
+            addedCount++
+        }
+        return AddExercisesResult(addedCount = addedCount, skippedNames = skippedNames)
     }
 
     suspend fun deleteWorkout(workout: WorkoutEntity) = workoutDao.delete(workout)
@@ -131,11 +174,21 @@ class WorkoutRepository(
     suspend fun deleteWorkoutExercise(item: WorkoutExerciseEntity) =
         workoutDao.deleteExercise(item)
 
+    suspend fun reorderWorkoutExercises(ordered: List<WorkoutExerciseEntity>) {
+        ordered.forEachIndexed { index, item ->
+            if (item.position != index) {
+                workoutDao.updateExercise(item.copy(position = index))
+            }
+        }
+    }
+
     suspend fun addSet(
         workoutExerciseId: Long,
-        addedWeightKg: Double,
-        reps: Int,
+        addedWeightKg: Double = 0.0,
+        reps: Int = 0,
         difficulty: SetDifficulty,
+        durationSeconds: Int? = null,
+        distanceMeters: Double? = null,
     ): Long {
         val position = workoutDao.getSets(workoutExerciseId).size
         return workoutDao.insertSet(
@@ -145,13 +198,35 @@ class WorkoutRepository(
                 reps = reps,
                 difficulty = difficulty,
                 position = position,
+                durationSeconds = durationSeconds,
+                distanceMeters = distanceMeters,
             ),
         )
     }
 
     suspend fun updateSet(set: SetEntity) = workoutDao.updateSet(set)
 
-    suspend fun deleteSet(set: SetEntity) = workoutDao.deleteSet(set)
+    suspend fun deleteSet(set: SetEntity) {
+        val workoutExerciseId = set.workoutExerciseId
+        workoutDao.deleteSet(set)
+        workoutDao.getSets(workoutExerciseId)
+            .sortedBy { it.position }
+            .forEachIndexed { index, remaining ->
+                if (remaining.position != index) {
+                    workoutDao.updateSet(remaining.copy(position = index))
+                }
+            }
+    }
 
     suspend fun getWorkoutExercise(id: Long) = workoutDao.getWorkoutExercise(id)
 }
+
+sealed class AddExerciseResult {
+    data class Added(val workoutExerciseId: Long) : AddExerciseResult()
+    data class AlreadyExists(val exerciseName: String) : AddExerciseResult()
+}
+
+data class AddExercisesResult(
+    val addedCount: Int,
+    val skippedNames: List<String>,
+)

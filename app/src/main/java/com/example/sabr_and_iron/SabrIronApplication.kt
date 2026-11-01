@@ -1,6 +1,7 @@
 package com.example.sabr_and_iron
 
 import android.app.Application
+import com.example.sabr_and_iron.data.local.DummyDataSeeder
 import com.example.sabr_and_iron.data.local.SabrIronDatabase
 import com.example.sabr_and_iron.data.repository.BackupRepository
 import com.example.sabr_and_iron.data.repository.ExerciseRepository
@@ -30,6 +31,14 @@ class SabrIronApplication : Application() {
 
     val backupRepository: BackupRepository by lazy {
         BackupRepository(this, database)
+    }
+
+    val dummyDataSeeder: DummyDataSeeder by lazy {
+        DummyDataSeeder(
+            exerciseDao = database.exerciseDao(),
+            routineDao = database.routineDao(),
+            workoutDao = database.workoutDao(),
+        )
     }
 
     override fun onCreate() {

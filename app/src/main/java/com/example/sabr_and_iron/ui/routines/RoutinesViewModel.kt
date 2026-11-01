@@ -21,23 +21,32 @@ class RoutinesViewModel(application: Application) : AndroidViewModel(application
 
     fun observeExercises() = exerciseRepository.observeExercises()
 
+    suspend fun isNameTaken(name: String, excludingId: Long = 0L): Boolean =
+        routineRepository.isNameTaken(name, excludingId)
+
     fun save(
         id: Long,
         name: String,
         inspiredBy: String?,
         exerciseIds: List<Long>,
         onDone: (Long) -> Unit,
+        onError: () -> Unit = {},
     ) {
         viewModelScope.launch {
-            val saved = routineRepository.save(
-                RoutineEntity(
-                    id = id,
-                    name = name.trim(),
-                    inspiredBy = inspiredBy?.trim()?.ifBlank { null },
-                ),
-                exerciseIds,
-            )
-            onDone(saved)
+            runCatching {
+                routineRepository.save(
+                    RoutineEntity(
+                        id = id,
+                        name = name.trim(),
+                        inspiredBy = inspiredBy?.trim()?.ifBlank { null },
+                    ),
+                    exerciseIds,
+                )
+            }.onSuccess { saved ->
+                onDone(saved)
+            }.onFailure {
+                onError()
+            }
         }
     }
 

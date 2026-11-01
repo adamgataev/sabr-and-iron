@@ -5,14 +5,13 @@ import android.net.Uri
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
 import com.example.sabr_and_iron.SabrIronApplication
+import com.example.sabr_and_iron.data.local.DummyDataSeeder
 import com.example.sabr_and_iron.data.local.model.PersonalRecord
 import com.example.sabr_and_iron.data.local.model.ProgressPoint
-import kotlinx.coroutines.ExperimentalCoroutinesApi
+import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
-import kotlinx.coroutines.flow.flatMapLatest
-import kotlinx.coroutines.flow.flowOf
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
 import java.io.File
@@ -21,27 +20,16 @@ class RecordsViewModel(application: Application) : AndroidViewModel(application)
     private val app = application as SabrIronApplication
     private val recordsRepository = app.recordsRepository
     private val backupRepository = app.backupRepository
+    private val dummyDataSeeder = app.dummyDataSeeder
 
     val records: StateFlow<List<PersonalRecord>> = recordsRepository.observePersonalRecords()
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), emptyList())
 
-    private val selectedExerciseId = MutableStateFlow<Long?>(null)
-
-    @OptIn(ExperimentalCoroutinesApi::class)
-    val progress: StateFlow<List<ProgressPoint>> = selectedExerciseId
-        .flatMapLatest { id ->
-            if (id == null) flowOf(emptyList()) else recordsRepository.observeProgress(id)
-        }
-        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), emptyList())
-
-    val selectedId: StateFlow<Long?> = selectedExerciseId
-
     private val _message = MutableStateFlow<String?>(null)
     val message: StateFlow<String?> = _message
 
-    fun selectExercise(id: Long?) {
-        selectedExerciseId.value = id
-    }
+    fun observeProgress(exerciseId: Long): Flow<List<ProgressPoint>> =
+        recordsRepository.observeProgress(exerciseId)
 
     fun clearMessage() {
         _message.value = null
@@ -78,6 +66,31 @@ class RecordsViewModel(application: Application) : AndroidViewModel(application)
             }
                 .onSuccess { _message.value = "Backup restored" }
                 .onFailure { _message.value = it.message ?: "Import failed" }
+        }
+    }
+
+    fun loadSampleData() {
+        viewModelScope.launch {
+            runCatching { dummyDataSeeder.seedIfEmpty() }
+                .onSuccess { result ->
+                    _message.value = when (result) {
+                        DummyDataSeeder.SeedResult.Inserted ->
+                            "Sample data loaded (routines + workouts)"
+                        DummyDataSeeder.SeedResult.AlreadyPopulated ->
+                            "Workouts already exist — sample data skipped"
+                    }
+                }
+                .onFailure { _message.value = it.message ?: "Sample data failed" }
+        }
+    }
+
+    fun clearAllData() {
+        viewModelScope.launch {
+            runCatching { dummyDataSeeder.clearAll() }
+                .onSuccess {
+                    _message.value = "All data cleared — exercise library restored"
+                }
+                .onFailure { _message.value = it.message ?: "Clear failed" }
         }
     }
 }

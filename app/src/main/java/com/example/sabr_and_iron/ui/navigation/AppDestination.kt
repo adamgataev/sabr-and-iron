@@ -1,10 +1,10 @@
 package com.example.sabr_and_iron.ui.navigation
 
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.filled.DirectionsRun
 import androidx.compose.material.icons.automirrored.filled.ListAlt
 import androidx.compose.material.icons.filled.EmojiEvents
 import androidx.compose.material.icons.filled.FitnessCenter
-import androidx.compose.material.icons.filled.SportsGymnastics
 import androidx.compose.ui.graphics.vector.ImageVector
 
 enum class AppDestination(
@@ -23,7 +23,7 @@ enum class AppDestination(
         route = "exercises",
         title = "Exercises",
         label = "Exercises",
-        icon = Icons.Filled.SportsGymnastics,
+        icon = Icons.AutoMirrored.Filled.DirectionsRun,
     ),
     Routines(
         route = "routines",

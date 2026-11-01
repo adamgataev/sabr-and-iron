@@ -35,10 +35,21 @@ class RoutineRepository(
     suspend fun getExerciseIds(routineId: Long): List<Long> =
         routineDao.getExercises(routineId).sortedBy { it.position }.map { it.exerciseId }
 
+    /** Case-insensitive uniqueness check; [excludingId] is ignored (current routine when editing). */
+    suspend fun isNameTaken(name: String, excludingId: Long = 0L): Boolean {
+        val trimmed = name.trim()
+        if (trimmed.isEmpty()) return false
+        val existing = routineDao.findByName(trimmed) ?: return false
+        return existing.id != excludingId
+    }
+
     suspend fun save(
         routine: RoutineEntity,
         exerciseIdsInOrder: List<Long>,
     ): Long {
+        if (isNameTaken(routine.name, excludingId = routine.id)) {
+            error("A routine with this name already exists")
+        }
         val id = if (routine.id == 0L) {
             routineDao.insert(routine)
         } else {

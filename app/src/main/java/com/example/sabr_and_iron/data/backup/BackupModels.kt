@@ -63,4 +63,6 @@ data class SetBackup(
     val reps: Int,
     val difficulty: String,
     val position: Int,
+    val durationSeconds: Int? = null,
+    val distanceMeters: Double? = null,
 )

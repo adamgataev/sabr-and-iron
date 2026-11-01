@@ -8,6 +8,7 @@ object Routes {
     const val RoutineEdit = "routine/{routineId}"
     const val ExerciseNew = "exercise/new"
     const val ExerciseEdit = "exercise/{exerciseId}"
+    const val RecordDetail = "records/{exerciseId}"
 
     fun workoutDetail(workoutId: Long) = "workout/$workoutId"
     fun activeExercise(workoutId: Long, workoutExerciseId: Long) =
@@ -15,4 +16,5 @@ object Routes {
 
     fun routineEdit(routineId: Long) = "routine/$routineId"
     fun exerciseEdit(exerciseId: Long) = "exercise/$exerciseId"
+    fun recordDetail(exerciseId: Long) = "records/$exerciseId"
 }

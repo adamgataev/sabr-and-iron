@@ -16,11 +16,23 @@ interface RoutineDao {
     @Query("SELECT * FROM routines ORDER BY name COLLATE NOCASE ASC")
     fun observeAll(): Flow<List<RoutineEntity>>
 
+    @Query("SELECT COUNT(*) FROM routines")
+    suspend fun count(): Int
+
     @Query("SELECT * FROM routines WHERE id = :id")
     suspend fun getById(id: Long): RoutineEntity?
 
     @Query("SELECT * FROM routines WHERE id = :id")
     fun observeById(id: Long): Flow<RoutineEntity?>
+
+    @Query(
+        """
+        SELECT * FROM routines
+        WHERE name = :name COLLATE NOCASE
+        LIMIT 1
+        """,
+    )
+    suspend fun findByName(name: String): RoutineEntity?
 
     @Query(
         """

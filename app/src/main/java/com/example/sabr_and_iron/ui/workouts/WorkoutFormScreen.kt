@@ -1,25 +1,23 @@
 package com.example.sabr_and_iron.ui.workouts
 
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.imePadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.text.KeyboardOptions
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.Close
-import androidx.compose.material.icons.filled.DragHandle
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.DatePicker
 import androidx.compose.material3.DatePickerDialog
 import androidx.compose.material3.ExperimentalMaterial3Api
-import androidx.compose.material3.Icon
-import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.OutlinedTextField
@@ -29,6 +27,8 @@ import androidx.compose.material3.TimePicker
 import androidx.compose.material3.rememberDatePickerState
 import androidx.compose.material3.rememberTimePickerState
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.SideEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateListOf
 import androidx.compose.runtime.mutableStateOf
@@ -42,6 +42,9 @@ import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.example.sabr_and_iron.data.local.entity.ExerciseEntity
+import com.example.sabr_and_iron.ui.components.FloatingIslandTopClearance
+import com.example.sabr_and_iron.ui.components.LocalAppSnackbar
+import com.example.sabr_and_iron.ui.components.ReorderableExerciseRow
 import com.example.sabr_and_iron.ui.util.formatDateTime
 import kotlinx.coroutines.launch
 import sh.calvin.reorderable.ReorderableItem
@@ -57,7 +60,9 @@ fun WorkoutFormScreen(
 ) {
     val library by viewModel.observeExercises().collectAsStateWithLifecycle(emptyList())
     val routines by viewModel.observeRoutines().collectAsStateWithLifecycle(emptyList())
+    val message by viewModel.message.collectAsStateWithLifecycle()
     val scope = rememberCoroutineScope()
+    val snackbar = LocalAppSnackbar.current
 
     var name by remember { mutableStateOf("") }
     var performedAt by remember { mutableStateOf(System.currentTimeMillis()) }
@@ -67,6 +72,16 @@ fun WorkoutFormScreen(
     var showRoutinePicker by remember { mutableStateOf(false) }
     var showDatePicker by remember { mutableStateOf(false) }
     var showTimePicker by remember { mutableStateOf(false) }
+    var draggingId by remember { mutableStateOf<Long?>(null) }
+    val presentIds = selected.map { it.id }.toSet()
+    val availableExercises = library.filter { it.id !in presentIds }
+
+    LaunchedEffect(message) {
+        message?.let {
+            snackbar.showSnackbar(it)
+            viewModel.clearMessage()
+        }
+    }
 
     val listState = rememberLazyListState()
     val reorderableState = rememberReorderableLazyListState(listState) { from, to ->
@@ -76,7 +91,9 @@ fun WorkoutFormScreen(
     Column(
         modifier = modifier
             .fillMaxSize()
-            .padding(16.dp),
+            .imePadding()
+            .padding(horizontal = 16.dp)
+            .padding(top = 16.dp),
         verticalArrangement = Arrangement.spacedBy(12.dp),
     ) {
         OutlinedTextField(
@@ -92,10 +109,13 @@ fun WorkoutFormScreen(
         OutlinedTextField(
             value = bodyWeight,
             onValueChange = { bodyWeight = it },
-            label = { Text("Body weight (kg, optional)") },
+            label = { Text("Body weight (kg)") },
             modifier = Modifier.fillMaxWidth(),
             keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal),
             singleLine = true,
+            supportingText = {
+                Text("Used for weighted / assisted bodyweight exercises")
+            },
         )
         Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
             OutlinedButton(
@@ -105,55 +125,60 @@ fun WorkoutFormScreen(
             OutlinedButton(
                 onClick = { showExercisePicker = true },
                 modifier = Modifier.weight(1f),
-            ) { Text("Add exercise") }
+                enabled = availableExercises.isNotEmpty(),
+            ) {
+                Text(
+                    if (availableExercises.isEmpty() && library.isNotEmpty()) {
+                        "All added"
+                    } else {
+                        "Add exercise"
+                    },
+                )
+            }
         }
         LazyColumn(
             state = listState,
             modifier = Modifier.weight(1f),
-            verticalArrangement = Arrangement.spacedBy(4.dp),
+            verticalArrangement = Arrangement.spacedBy(8.dp),
         ) {
-            items(selected, key = { it.id to selected.indexOf(it) }) { exercise ->
-                ReorderableItem(
-                    reorderableState,
-                    key = exercise.id to selected.indexOf(exercise),
-                ) {
-                    Row(
-                        modifier = Modifier.fillMaxWidth(),
-                        verticalAlignment = Alignment.CenterVertically,
-                    ) {
-                        Icon(
-                            Icons.Filled.DragHandle,
-                            contentDescription = "Reorder",
-                            modifier = Modifier.draggableHandle(),
-                        )
-                        Text(
-                            exercise.name,
-                            modifier = Modifier
-                                .weight(1f)
-                                .padding(horizontal = 8.dp),
-                        )
-                        IconButton(onClick = { selected.remove(exercise) }) {
-                            Icon(Icons.Filled.Close, contentDescription = "Remove")
-                        }
+            items(selected, key = { it.id }) { exercise ->
+                ReorderableItem(reorderableState, key = exercise.id) { isDragging ->
+                    SideEffect {
+                        if (isDragging) draggingId = exercise.id
+                        else if (draggingId == exercise.id) draggingId = null
                     }
+                    ReorderableExerciseRow(
+                        name = exercise.name,
+                        isDragging = isDragging,
+                        dimmed = draggingId != null && !isDragging,
+                        onRemove = { selected.remove(exercise) },
+                    )
                 }
             }
         }
-        Button(
-            onClick = {
-                if (name.isBlank()) return@Button
-                viewModel.createWorkout(
-                    name = name.trim(),
-                    performedAt = performedAt,
-                    bodyWeightKg = bodyWeight.toDoubleOrNull(),
-                    exerciseIds = selected.map { it.id },
-                    onDone = onSaved,
-                )
-            },
-            modifier = Modifier.fillMaxWidth(),
-            enabled = name.isNotBlank(),
+        Box(
+            modifier = Modifier
+                .fillMaxWidth()
+                .height(FloatingIslandTopClearance),
         ) {
-            Text("Save workout")
+            Button(
+                onClick = {
+                    if (name.isBlank()) return@Button
+                    viewModel.createWorkout(
+                        name = name.trim(),
+                        performedAt = performedAt,
+                        bodyWeightKg = bodyWeight.toDoubleOrNull(),
+                        exerciseIds = selected.map { it.id },
+                        onDone = onSaved,
+                    )
+                },
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .align(Alignment.TopCenter),
+                enabled = name.isNotBlank(),
+            ) {
+                Text("Save workout")
+            }
         }
     }
 
@@ -162,15 +187,22 @@ fun WorkoutFormScreen(
             onDismissRequest = { showExercisePicker = false },
             title = { Text("Select exercise") },
             text = {
-                LazyColumn {
-                    items(library, key = { it.id }) { exercise ->
-                        TextButton(
-                            onClick = {
-                                selected.add(exercise)
-                                showExercisePicker = false
-                            },
-                            modifier = Modifier.fillMaxWidth(),
-                        ) { Text(exercise.name) }
+                if (availableExercises.isEmpty()) {
+                    Text(
+                        "Every exercise is already in this workout.",
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    )
+                } else {
+                    LazyColumn {
+                        items(availableExercises, key = { it.id }) { exercise ->
+                            TextButton(
+                                onClick = {
+                                    selected.add(exercise)
+                                    showExercisePicker = false
+                                },
+                                modifier = Modifier.fillMaxWidth(),
+                            ) { Text(exercise.name) }
+                        }
                     }
                 }
             },
@@ -192,8 +224,13 @@ fun WorkoutFormScreen(
                                 scope.launch {
                                     val ids = viewModel.routineExerciseIds(routine.id)
                                     val byId = library.associateBy { it.id }
-                                    ids.mapNotNull { byId[it] }.forEach { selected.add(it) }
+                                    val presentIds = selected.map { it.id }.toSet()
+                                    val fromRoutine = ids.mapNotNull { byId[it] }
+                                    val skipped = fromRoutine.filter { it.id in presentIds }
+                                    val toAdd = fromRoutine.filter { it.id !in presentIds }
+                                    toAdd.forEach { selected.add(it) }
                                     showRoutinePicker = false
+                                    viewModel.showRoutineDuplicates(skipped.map { it.name })
                                 }
                             },
                             modifier = Modifier.fillMaxWidth(),

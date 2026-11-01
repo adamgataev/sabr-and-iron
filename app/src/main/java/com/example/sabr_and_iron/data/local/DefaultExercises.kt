@@ -53,6 +53,20 @@ object DefaultExercises {
             defaultRestSeconds = COMPOUND_REST_SECONDS,
         ),
         ExerciseEntity(
+            name = "Assisted Pull-up",
+            targetedMuscles = listOf(MuscleGroup.Back, MuscleGroup.Arms),
+            exerciseType = ExerciseType.Assisted,
+            startingResistanceKg = null,
+            defaultRestSeconds = COMPOUND_REST_SECONDS,
+        ),
+        ExerciseEntity(
+            name = "Easy Run",
+            targetedMuscles = listOf(MuscleGroup.Legs),
+            exerciseType = ExerciseType.DistanceTime,
+            startingResistanceKg = null,
+            defaultRestSeconds = null,
+        ),
+        ExerciseEntity(
             name = "Lat Pulldown",
             targetedMuscles = listOf(MuscleGroup.Back),
             exerciseType = ExerciseType.Regular,
@@ -111,7 +125,7 @@ object DefaultExercises {
         ExerciseEntity(
             name = "Plank",
             targetedMuscles = listOf(MuscleGroup.Core),
-            exerciseType = ExerciseType.Regular,
+            exerciseType = ExerciseType.TimeOnly,
             startingResistanceKg = null,
             defaultRestSeconds = ACCESSORY_REST_SECONDS,
         ),

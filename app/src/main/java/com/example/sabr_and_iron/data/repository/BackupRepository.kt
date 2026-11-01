@@ -118,6 +118,8 @@ class BackupRepository(
                         reps = it.reps,
                         difficulty = SetDifficulty.valueOf(it.difficulty),
                         position = it.position,
+                        durationSeconds = it.durationSeconds,
+                        distanceMeters = it.distanceMeters,
                     )
                 },
             )
@@ -168,7 +170,8 @@ class BackupRepository(
             val header = sheet.createRow(0)
             listOf(
                 "workoutId", "workoutName", "performedAt", "bodyWeightKg",
-                "exercise", "set", "addedKg", "effectiveKg", "reps", "difficulty",
+                "exercise", "set", "addedKg", "effectiveKg", "reps",
+                "durationSec", "distanceM", "difficulty",
             ).forEachIndexed { i, title ->
                 header.createCell(i).setCellValue(title)
             }
@@ -210,7 +213,9 @@ class BackupRepository(
                                 row.createCell(6).setCellValue(set.addedWeightKg)
                                 row.createCell(7).setCellValue(effective)
                                 row.createCell(8).setCellValue(set.reps.toDouble())
-                                row.createCell(9).setCellValue(set.difficulty)
+                                set.durationSeconds?.let { row.createCell(9).setCellValue(it.toDouble()) }
+                                set.distanceMeters?.let { row.createCell(10).setCellValue(it) }
+                                row.createCell(11).setCellValue(set.difficulty)
                             }
                         }
                     }
@@ -280,6 +285,8 @@ class BackupRepository(
                     reps = it.reps,
                     difficulty = it.difficulty.name,
                     position = it.position,
+                    durationSeconds = it.durationSeconds,
+                    distanceMeters = it.distanceMeters,
                 )
             },
         )

@@ -29,6 +29,9 @@ class ExercisesViewModel(application: Application) : AndroidViewModel(applicatio
         query.value = value
     }
 
+    suspend fun isNameTaken(name: String, excludingId: Long): Boolean =
+        repository.isNameTaken(name, excludingId)
+
     fun save(
         id: Long,
         name: String,
@@ -37,19 +40,23 @@ class ExercisesViewModel(application: Application) : AndroidViewModel(applicatio
         startingResistanceKg: Double?,
         defaultRestSeconds: Int?,
         onDone: (Long) -> Unit,
+        onError: (String) -> Unit = {},
     ) {
         viewModelScope.launch {
-            val savedId = repository.upsert(
-                ExerciseEntity(
-                    id = id,
-                    name = name.trim(),
-                    targetedMuscles = muscles,
-                    exerciseType = type,
-                    startingResistanceKg = startingResistanceKg,
-                    defaultRestSeconds = defaultRestSeconds,
-                ),
-            )
-            onDone(savedId)
+            runCatching {
+                repository.upsert(
+                    ExerciseEntity(
+                        id = id,
+                        name = name.trim(),
+                        targetedMuscles = muscles,
+                        exerciseType = type,
+                        startingResistanceKg = startingResistanceKg,
+                        defaultRestSeconds = defaultRestSeconds,
+                    ),
+                )
+            }
+                .onSuccess { onDone(it) }
+                .onFailure { onError(it.message ?: "Could not save exercise") }
         }
     }
 

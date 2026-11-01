@@ -14,6 +14,9 @@ interface ExerciseDao {
     @Query("SELECT * FROM exercises ORDER BY name COLLATE NOCASE ASC")
     fun observeAll(): Flow<List<ExerciseEntity>>
 
+    @Query("SELECT * FROM exercises ORDER BY name COLLATE NOCASE ASC")
+    suspend fun getAll(): List<ExerciseEntity>
+
     @Query(
         """
         SELECT * FROM exercises
@@ -29,6 +32,15 @@ interface ExerciseDao {
 
     @Query("SELECT * FROM exercises WHERE id = :id")
     fun observeById(id: Long): Flow<ExerciseEntity?>
+
+    @Query(
+        """
+        SELECT * FROM exercises
+        WHERE name = :name COLLATE NOCASE
+        LIMIT 1
+        """,
+    )
+    suspend fun findByName(name: String): ExerciseEntity?
 
     @Query("SELECT COUNT(*) FROM exercises")
     suspend fun count(): Int

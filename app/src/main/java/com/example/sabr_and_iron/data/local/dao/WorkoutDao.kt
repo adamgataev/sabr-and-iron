@@ -11,8 +11,7 @@ import com.example.sabr_and_iron.data.local.entity.SetEntity
 import com.example.sabr_and_iron.data.local.entity.WorkoutEntity
 import com.example.sabr_and_iron.data.local.entity.WorkoutExerciseEntity
 import com.example.sabr_and_iron.data.local.model.ExerciseHistoryEntry
-import com.example.sabr_and_iron.data.local.model.PersonalRecord
-import com.example.sabr_and_iron.data.local.model.ProgressPoint
+import com.example.sabr_and_iron.data.local.model.SetMetricRow
 import com.example.sabr_and_iron.data.local.model.WorkoutSummary
 import kotlinx.coroutines.flow.Flow
 
@@ -20,6 +19,9 @@ import kotlinx.coroutines.flow.Flow
 interface WorkoutDao {
     @Query("SELECT * FROM workouts ORDER BY performedAt DESC")
     fun observeAll(): Flow<List<WorkoutEntity>>
+
+    @Query("SELECT COUNT(*) FROM workouts")
+    suspend fun count(): Int
 
     @Query(
         """
@@ -133,63 +135,63 @@ interface WorkoutDao {
         """
         SELECT e.id AS exerciseId,
                e.name AS exerciseName,
-               MAX(COALESCE(we.startingResistanceKg, 0) + s.addedWeightKg) AS effectiveWeightKg,
-               (
-                   SELECT s2.reps FROM sets s2
-                   INNER JOIN workout_exercises we2 ON we2.id = s2.workoutExerciseId
-                   INNER JOIN workouts w2 ON w2.id = we2.workoutId
-                   WHERE we2.exerciseId = e.id
-                   ORDER BY (COALESCE(we2.startingResistanceKg, 0) + s2.addedWeightKg) DESC,
-                            s2.reps DESC,
-                            w2.performedAt DESC
-                   LIMIT 1
-               ) AS reps,
-               (
-                   SELECT w3.performedAt FROM sets s3
-                   INNER JOIN workout_exercises we3 ON we3.id = s3.workoutExerciseId
-                   INNER JOIN workouts w3 ON w3.id = we3.workoutId
-                   WHERE we3.exerciseId = e.id
-                   ORDER BY (COALESCE(we3.startingResistanceKg, 0) + s3.addedWeightKg) DESC,
-                            s3.reps DESC,
-                            w3.performedAt DESC
-                   LIMIT 1
-               ) AS performedAt
-        FROM exercises e
-        INNER JOIN workout_exercises we ON we.exerciseId = e.id
-        INNER JOIN sets s ON s.workoutExerciseId = we.id
-        GROUP BY e.id
-        ORDER BY e.name COLLATE NOCASE ASC
+               e.exerciseType AS exerciseType,
+               w.id AS workoutId,
+               w.performedAt AS performedAt,
+               w.bodyWeightKg AS bodyWeightKg,
+               we.startingResistanceKg AS startingResistanceKg,
+               s.addedWeightKg AS addedWeightKg,
+               s.reps AS reps,
+               s.durationSeconds AS durationSeconds,
+               s.distanceMeters AS distanceMeters
+        FROM sets s
+        INNER JOIN workout_exercises we ON we.id = s.workoutExerciseId
+        INNER JOIN workouts w ON w.id = we.workoutId
+        INNER JOIN exercises e ON e.id = we.exerciseId
+        ORDER BY e.name COLLATE NOCASE ASC, w.performedAt ASC
         """,
     )
-    fun observePersonalRecords(): Flow<List<PersonalRecord>>
+    fun observeAllSetMetrics(): Flow<List<SetMetricRow>>
 
     @Query(
         """
-        SELECT we.exerciseId AS exerciseId,
+        SELECT e.id AS exerciseId,
+               e.name AS exerciseName,
+               e.exerciseType AS exerciseType,
+               w.id AS workoutId,
                w.performedAt AS performedAt,
-               MAX(COALESCE(we.startingResistanceKg, 0) + s.addedWeightKg) AS liftWeightKg,
-               w.bodyWeightKg AS bodyWeightKg
-        FROM workouts w
-        INNER JOIN workout_exercises we ON we.workoutId = w.id
-        INNER JOIN sets s ON s.workoutExerciseId = we.id
+               w.bodyWeightKg AS bodyWeightKg,
+               we.startingResistanceKg AS startingResistanceKg,
+               s.addedWeightKg AS addedWeightKg,
+               s.reps AS reps,
+               s.durationSeconds AS durationSeconds,
+               s.distanceMeters AS distanceMeters
+        FROM sets s
+        INNER JOIN workout_exercises we ON we.id = s.workoutExerciseId
+        INNER JOIN workouts w ON w.id = we.workoutId
+        INNER JOIN exercises e ON e.id = we.exerciseId
         WHERE we.exerciseId = :exerciseId
-        GROUP BY w.id
-        ORDER BY w.performedAt ASC
+        ORDER BY w.performedAt ASC, s.position ASC
         """,
     )
-    fun observeProgress(exerciseId: Long): Flow<List<ProgressPoint>>
+    fun observeSetMetricsForExercise(exerciseId: Long): Flow<List<SetMetricRow>>
 
     @Query(
         """
         SELECT w.performedAt AS performedAt,
                w.name AS workoutName,
+               w.bodyWeightKg AS bodyWeightKg,
                s.addedWeightKg AS addedWeightKg,
                we.startingResistanceKg AS startingResistanceKg,
                s.reps AS reps,
-               s.difficulty AS difficulty
+               s.durationSeconds AS durationSeconds,
+               s.distanceMeters AS distanceMeters,
+               s.difficulty AS difficulty,
+               e.exerciseType AS exerciseType
         FROM sets s
         INNER JOIN workout_exercises we ON we.id = s.workoutExerciseId
         INNER JOIN workouts w ON w.id = we.workoutId
+        INNER JOIN exercises e ON e.id = we.exerciseId
         WHERE we.exerciseId = :exerciseId
           AND we.id != :excludeWorkoutExerciseId
         ORDER BY w.performedAt DESC, s.position ASC

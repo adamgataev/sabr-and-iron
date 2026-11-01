@@ -5,6 +5,7 @@ import androidx.room.Database
 import androidx.room.Room
 import androidx.room.RoomDatabase
 import androidx.room.TypeConverters
+import androidx.room.migration.Migration
 import androidx.sqlite.db.SupportSQLiteDatabase
 import com.example.sabr_and_iron.data.local.dao.ExerciseDao
 import com.example.sabr_and_iron.data.local.dao.RoutineDao
@@ -28,7 +29,7 @@ import kotlinx.coroutines.launch
         WorkoutExerciseEntity::class,
         SetEntity::class,
     ],
-    version = 1,
+    version = 2,
     exportSchema = true,
 )
 @TypeConverters(Converters::class)
@@ -39,6 +40,13 @@ abstract class SabrIronDatabase : RoomDatabase() {
 
     companion object {
         private const val DATABASE_NAME = "sabr_iron.db"
+
+        private val MIGRATION_1_2 = object : Migration(1, 2) {
+            override fun migrate(db: SupportSQLiteDatabase) {
+                db.execSQL("ALTER TABLE sets ADD COLUMN durationSeconds INTEGER")
+                db.execSQL("ALTER TABLE sets ADD COLUMN distanceMeters REAL")
+            }
+        }
 
         @Volatile
         private var instance: SabrIronDatabase? = null
@@ -52,6 +60,7 @@ abstract class SabrIronDatabase : RoomDatabase() {
         private fun buildDatabase(context: Context): SabrIronDatabase {
             lateinit var database: SabrIronDatabase
             database = Room.databaseBuilder(context, SabrIronDatabase::class.java, DATABASE_NAME)
+                .addMigrations(MIGRATION_1_2)
                 .addCallback(
                     object : Callback() {
                         override fun onCreate(db: SupportSQLiteDatabase) {

@@ -6,25 +6,34 @@ import androidx.compose.runtime.Composable
 import androidx.compose.ui.graphics.Color
 
 private val SabrIronDarkColorScheme = darkColorScheme(
-    primary = IronAmber,
-    onPrimary = Color(0xFF3F2E00),
-    primaryContainer = Color(0xFF5C4300),
-    onPrimaryContainer = Color(0xFFFFDF9E),
-    secondary = SteelBlue,
+    primary = AccentBlue,
+    onPrimary = Color.White,
+    primaryContainer = AccentBlueDim,
+    onPrimaryContainer = AccentBlueBright,
+    secondary = ChartSecondary,
     onSecondary = Color(0xFF00344A),
-    secondaryContainer = Color(0xFF1A4D66),
-    onSecondaryContainer = Color(0xFFC8E6FF),
-    tertiary = Color(0xFFC5C0C7),
-    onTertiary = Color(0xFF2E2B2F),
-    background = IronSurface,
-    onBackground = IronOnSurface,
-    surface = IronSurface,
-    onSurface = IronOnSurface,
-    surfaceVariant = IronSurfaceVariant,
-    onSurfaceVariant = IronOnSurfaceVariant,
-    outline = IronOutline,
-    error = IronError,
-    onError = Color(0xFF690005),
+    secondaryContainer = Color(0xFF1E293B),
+    onSecondaryContainer = Color(0xFFE2E8F0),
+    tertiary = TextMuted,
+    onTertiary = CharcoalBg,
+    background = CharcoalBg,
+    onBackground = TextPrimary,
+    surface = CharcoalBg,
+    onSurface = TextPrimary,
+    surfaceVariant = CharcoalSurface,
+    onSurfaceVariant = TextMuted,
+    surfaceContainerHighest = CharcoalSurface,
+    surfaceContainerHigh = CharcoalSurface,
+    surfaceContainer = CharcoalBg,
+    surfaceContainerLow = CharcoalBg,
+    surfaceContainerLowest = CharcoalBg,
+    outline = CharcoalBorder,
+    outlineVariant = CharcoalBorder.copy(alpha = 0.7f),
+    error = ErrorSoft,
+    onError = Color(0xFF450A0A),
+    inverseSurface = TextPrimary,
+    inverseOnSurface = CharcoalBg,
+    inversePrimary = AccentBlueDim,
 )
 
 @Composable
@@ -32,6 +41,6 @@ fun SabrIronTheme(content: @Composable () -> Unit) {
     MaterialTheme(
         colorScheme = SabrIronDarkColorScheme,
         typography = Typography,
-        content = content
+        content = content,
     )
 }

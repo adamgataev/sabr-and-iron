@@ -1,28 +1,27 @@
 package com.example.sabr_and_iron.ui.routines
 
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.imePadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.rememberLazyListState
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.Close
-import androidx.compose.material.icons.filled.DragHandle
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
-import androidx.compose.material3.Icon
-import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.OutlinedTextField
+import androidx.compose.material3.OutlinedTextFieldDefaults
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.SideEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateListOf
 import androidx.compose.runtime.mutableStateOf
@@ -34,6 +33,11 @@ import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.example.sabr_and_iron.data.local.entity.ExerciseEntity
+import com.example.sabr_and_iron.ui.components.ConfirmDeleteDialog
+import com.example.sabr_and_iron.ui.components.FloatingIslandTopClearance
+import com.example.sabr_and_iron.ui.components.ReorderableExerciseRow
+import com.example.sabr_and_iron.ui.theme.ErrorVibrant
+import kotlinx.coroutines.delay
 import sh.calvin.reorderable.ReorderableItem
 import sh.calvin.reorderable.rememberReorderableLazyListState
 
@@ -55,6 +59,12 @@ fun RoutineEditorScreen(
     var inspiredBy by remember { mutableStateOf("") }
     val selected = remember { mutableStateListOf<ExerciseEntity>() }
     var showPicker by remember { mutableStateOf(false) }
+    var confirmDelete by remember { mutableStateOf(false) }
+    var draggingId by remember { mutableStateOf<Long?>(null) }
+    var nameTaken by remember { mutableStateOf(false) }
+    var checkingName by remember { mutableStateOf(false) }
+    val presentIds = selected.map { it.id }.toSet()
+    val availableExercises = library.filter { it.id !in presentIds }
 
     LaunchedEffect(detail) {
         detail?.let {
@@ -62,7 +72,22 @@ fun RoutineEditorScreen(
             inspiredBy = it.routine.inspiredBy.orEmpty()
             selected.clear()
             selected.addAll(it.exercises.map { item -> item.exercise })
+            nameTaken = false
         }
+    }
+
+    LaunchedEffect(name, detail?.routine?.id, routineId) {
+        val trimmed = name.trim()
+        nameTaken = false
+        if (trimmed.isEmpty()) {
+            checkingName = false
+            return@LaunchedEffect
+        }
+        checkingName = true
+        delay(450)
+        val excludeId = detail?.routine?.id ?: routineId?.takeIf { it > 0 } ?: 0L
+        nameTaken = viewModel.isNameTaken(trimmed, excludingId = excludeId)
+        checkingName = false
     }
 
     val listState = rememberLazyListState()
@@ -73,7 +98,9 @@ fun RoutineEditorScreen(
     Column(
         modifier = modifier
             .fillMaxSize()
-            .padding(16.dp),
+            .imePadding()
+            .padding(horizontal = 16.dp)
+            .padding(top = 16.dp),
         verticalArrangement = Arrangement.spacedBy(12.dp),
     ) {
         OutlinedTextField(
@@ -82,6 +109,23 @@ fun RoutineEditorScreen(
             label = { Text("Name") },
             modifier = Modifier.fillMaxWidth(),
             singleLine = true,
+            isError = nameTaken,
+            supportingText = if (nameTaken) {
+                {
+                    Text(
+                        text = "You've already used this name for a routine",
+                        color = ErrorVibrant,
+                    )
+                }
+            } else {
+                null
+            },
+            colors = OutlinedTextFieldDefaults.colors(
+                errorBorderColor = ErrorVibrant,
+                errorLabelColor = ErrorVibrant,
+                errorCursorColor = ErrorVibrant,
+                errorSupportingTextColor = ErrorVibrant,
+            ),
         )
         OutlinedTextField(
             value = inspiredBy,
@@ -93,65 +137,86 @@ fun RoutineEditorScreen(
         OutlinedButton(
             onClick = { showPicker = true },
             modifier = Modifier.fillMaxWidth(),
+            enabled = availableExercises.isNotEmpty(),
         ) {
-            Text("Add exercise")
+            Text(
+                if (availableExercises.isEmpty() && library.isNotEmpty()) {
+                    "All exercises added"
+                } else {
+                    "Add exercise"
+                },
+            )
         }
         LazyColumn(
             state = listState,
             modifier = Modifier.weight(1f),
-            verticalArrangement = Arrangement.spacedBy(4.dp),
+            verticalArrangement = Arrangement.spacedBy(8.dp),
         ) {
-            items(selected, key = { it.id to selected.indexOf(it) }) { exercise ->
-                ReorderableItem(reorderableState, key = exercise.id to selected.indexOf(exercise)) { _ ->
-                    Row(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .padding(vertical = 4.dp),
-                        verticalAlignment = Alignment.CenterVertically,
+            items(selected, key = { it.id }) { exercise ->
+                ReorderableItem(reorderableState, key = exercise.id) { isDragging ->
+                    SideEffect {
+                        if (isDragging) draggingId = exercise.id
+                        else if (draggingId == exercise.id) draggingId = null
+                    }
+                    ReorderableExerciseRow(
+                        name = exercise.name,
+                        isDragging = isDragging,
+                        dimmed = draggingId != null && !isDragging,
+                        onRemove = { selected.remove(exercise) },
+                    )
+                }
+            }
+        }
+        Box(
+            modifier = Modifier
+                .fillMaxWidth()
+                .height(FloatingIslandTopClearance),
+        ) {
+            Column(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .align(Alignment.TopCenter),
+                verticalArrangement = Arrangement.spacedBy(4.dp),
+            ) {
+                Button(
+                    onClick = {
+                        if (name.isBlank() || nameTaken || checkingName) return@Button
+                        viewModel.save(
+                            id = routineId ?: 0L,
+                            name = name,
+                            inspiredBy = inspiredBy,
+                            exerciseIds = selected.map { it.id },
+                            onDone = { onDone() },
+                            onError = { nameTaken = true },
+                        )
+                    },
+                    modifier = Modifier.fillMaxWidth(),
+                    enabled = name.isNotBlank() && !nameTaken && !checkingName,
+                ) {
+                    Text("Save")
+                }
+                if (detail != null) {
+                    TextButton(
+                        onClick = { confirmDelete = true },
+                        modifier = Modifier.fillMaxWidth(),
                     ) {
-                        Icon(
-                            Icons.Filled.DragHandle,
-                            contentDescription = "Reorder",
-                            modifier = Modifier.draggableHandle(),
-                        )
-                        Text(
-                            text = exercise.name,
-                            modifier = Modifier
-                                .weight(1f)
-                                .padding(horizontal = 8.dp),
-                            style = MaterialTheme.typography.bodyLarge,
-                        )
-                        IconButton(onClick = { selected.remove(exercise) }) {
-                            Icon(Icons.Filled.Close, contentDescription = "Remove")
-                        }
+                        Text("Delete", color = MaterialTheme.colorScheme.error)
                     }
                 }
             }
         }
-        Button(
-            onClick = {
-                if (name.isBlank()) return@Button
-                viewModel.save(
-                    id = routineId ?: 0L,
-                    name = name,
-                    inspiredBy = inspiredBy,
-                    exerciseIds = selected.map { it.id },
-                    onDone = { onDone() },
-                )
+    }
+
+    if (confirmDelete) {
+        ConfirmDeleteDialog(
+            title = "Delete routine?",
+            body = "This permanently removes the routine. Workouts already logged are not affected.",
+            onConfirm = {
+                confirmDelete = false
+                detail?.routine?.let { viewModel.delete(it, onDone) }
             },
-            modifier = Modifier.fillMaxWidth(),
-            enabled = name.isNotBlank(),
-        ) {
-            Text("Save")
-        }
-        if (detail != null) {
-            TextButton(
-                onClick = { detail?.routine?.let { viewModel.delete(it, onDone) } },
-                modifier = Modifier.fillMaxWidth(),
-            ) {
-                Text("Delete", color = MaterialTheme.colorScheme.error)
-            }
-        }
+            onDismiss = { confirmDelete = false },
+        )
     }
 
     if (showPicker) {
@@ -159,16 +224,23 @@ fun RoutineEditorScreen(
             onDismissRequest = { showPicker = false },
             title = { Text("Select exercise") },
             text = {
-                LazyColumn {
-                    items(library, key = { it.id }) { exercise ->
-                        TextButton(
-                            onClick = {
-                                selected.add(exercise)
-                                showPicker = false
-                            },
-                            modifier = Modifier.fillMaxWidth(),
-                        ) {
-                            Text(exercise.name)
+                if (availableExercises.isEmpty()) {
+                    Text(
+                        "Every exercise is already in this routine.",
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    )
+                } else {
+                    LazyColumn {
+                        items(availableExercises, key = { it.id }) { exercise ->
+                            TextButton(
+                                onClick = {
+                                    selected.add(exercise)
+                                    showPicker = false
+                                },
+                                modifier = Modifier.fillMaxWidth(),
+                            ) {
+                                Text(exercise.name)
+                            }
                         }
                     }
                 }
