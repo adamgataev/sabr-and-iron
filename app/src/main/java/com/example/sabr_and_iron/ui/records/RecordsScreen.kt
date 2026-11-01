@@ -17,7 +17,9 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.MoreVert
 import androidx.compose.material3.DropdownMenu
@@ -59,16 +61,22 @@ import com.example.sabr_and_iron.ui.util.formatDuration
 import com.example.sabr_and_iron.ui.util.formatKg
 import com.example.sabr_and_iron.ui.util.formatPace
 import com.patrykandpatrick.vico.compose.cartesian.CartesianChartHost
+import com.patrykandpatrick.vico.compose.cartesian.VicoScrollState
+import com.patrykandpatrick.vico.compose.cartesian.VicoZoomState
 import com.patrykandpatrick.vico.compose.cartesian.axis.rememberBottom
 import com.patrykandpatrick.vico.compose.cartesian.axis.rememberStart
 import com.patrykandpatrick.vico.compose.cartesian.layer.point
 import com.patrykandpatrick.vico.compose.cartesian.layer.rememberLine
 import com.patrykandpatrick.vico.compose.cartesian.layer.rememberLineCartesianLayer
 import com.patrykandpatrick.vico.compose.cartesian.rememberCartesianChart
+import com.patrykandpatrick.vico.compose.cartesian.rememberVicoScrollState
+import com.patrykandpatrick.vico.compose.cartesian.rememberVicoZoomState
 import com.patrykandpatrick.vico.compose.common.ProvideVicoTheme
 import com.patrykandpatrick.vico.compose.common.component.rememberShapeComponent
 import com.patrykandpatrick.vico.compose.common.fill
 import com.patrykandpatrick.vico.compose.m3.common.rememberM3VicoTheme
+import com.patrykandpatrick.vico.core.cartesian.Scroll
+import com.patrykandpatrick.vico.core.cartesian.Zoom
 import com.patrykandpatrick.vico.core.cartesian.axis.HorizontalAxis
 import com.patrykandpatrick.vico.core.cartesian.axis.VerticalAxis
 import com.patrykandpatrick.vico.core.cartesian.data.CartesianChartModelProducer
@@ -303,9 +311,31 @@ fun RecordDetailScreen(
     val progress by viewModel.observeProgress(exerciseId)
         .collectAsStateWithLifecycle(initialValue = emptyList())
 
+    val dualProgress = remember(progress) {
+        progress.filter { it.secondaryMetricValue != null }
+    }
+    val showDualDistanceTime = dualProgress.isNotEmpty() &&
+        dualProgress.first().metric == ProgressMetric.DistanceMeters
+
+    val sharedScrollState = rememberVicoScrollState(
+        scrollEnabled = true,
+        initialScroll = Scroll.Absolute.End,
+    )
+    val visibleXCount = remember(dualProgress.size) {
+        dualProgress.size.coerceIn(1, 6).toDouble()
+    }
+    val sharedZoomState = rememberVicoZoomState(
+        zoomEnabled = true,
+        initialZoom = remember(visibleXCount) {
+            Zoom.max(Zoom.fixed(), Zoom.x(visibleXCount))
+        },
+        minZoom = Zoom.Content,
+    )
+
     Column(
         modifier = modifier
             .fillMaxSize()
+            .verticalScroll(rememberScrollState())
             .padding(16.dp),
         verticalArrangement = Arrangement.spacedBy(12.dp),
     ) {
@@ -331,13 +361,36 @@ fun RecordDetailScreen(
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
             )
         }
-        if (progress.isNotEmpty()) {
-            ProgressChart(progress = progress)
-        } else {
+        if (progress.isEmpty()) {
             Text(
                 "Not enough history to chart yet.",
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
             )
+        } else if (showDualDistanceTime) {
+            ProgressChart(
+                progress = dualProgress,
+                yValues = dualProgress.map { it.metricValue },
+                metric = ProgressMetric.DistanceMeters,
+                title = "Distance",
+                subtitle = "Distance over time",
+                primaryLabel = "Distance",
+                showBodyWeight = false,
+                scrollState = sharedScrollState,
+                zoomState = sharedZoomState,
+            )
+            ProgressChart(
+                progress = dualProgress,
+                yValues = dualProgress.mapNotNull { it.secondaryMetricValue },
+                metric = ProgressMetric.DurationSeconds,
+                title = "Duration",
+                subtitle = "Duration over time",
+                primaryLabel = "Duration",
+                showBodyWeight = false,
+                scrollState = sharedScrollState,
+                zoomState = sharedZoomState,
+            )
+        } else {
+            ProgressChart(progress = progress)
         }
     }
 }
@@ -364,14 +417,32 @@ fun formatRecordSummary(record: PersonalRecord): String =
 fun ProgressChart(
     progress: List<ProgressPoint>,
     modifier: Modifier = Modifier,
+    yValues: List<Double> = progress.map { it.metricValue },
+    metric: ProgressMetric = progress.firstOrNull()?.metric ?: ProgressMetric.LoadKg,
+    title: String = "Progress",
+    subtitle: String? = null,
+    primaryLabel: String? = null,
+    showBodyWeight: Boolean =
+        metric == ProgressMetric.LoadKg && progress.any { it.bodyWeightKg != null },
+    scrollState: VicoScrollState? = null,
+    zoomState: VicoZoomState? = null,
 ) {
-    if (progress.isEmpty()) return
+    if (progress.isEmpty() || yValues.isEmpty()) return
 
     val modelProducer = remember { CartesianChartModelProducer() }
     var chartReady by remember { mutableStateOf(false) }
-    val metric = progress.first().metric
-    val showBodyWeight = metric == ProgressMetric.LoadKg && progress.any { it.bodyWeightKg != null }
     val dates = remember(progress) { progress.map { it.performedAt } }
+    val resolvedSubtitle = subtitle ?: when (metric) {
+        ProgressMetric.LoadKg ->
+            "Effective load over time" + if (showBodyWeight) " vs body weight" else ""
+        ProgressMetric.DurationSeconds -> "Duration over time"
+        ProgressMetric.DistanceMeters -> "Distance over time"
+    }
+    val resolvedPrimaryLabel = primaryLabel ?: when (metric) {
+        ProgressMetric.LoadKg -> "Load"
+        ProgressMetric.DurationSeconds -> "Duration"
+        ProgressMetric.DistanceMeters -> "Distance"
+    }
 
     val bottomAxisFormatter = remember(dates) {
         CartesianValueFormatter { _, value, _ ->
@@ -388,21 +459,26 @@ fun ProgressChart(
             }
         }
     }
-    val primaryLabel = when (metric) {
-        ProgressMetric.LoadKg -> "Load"
-        ProgressMetric.DurationSeconds -> "Duration"
-        ProgressMetric.DistanceMeters -> "Distance"
-    }
-    val subtitle = when (metric) {
-        ProgressMetric.LoadKg ->
-            "Effective load over time" + if (showBodyWeight) " vs body weight" else ""
-        ProgressMetric.DurationSeconds -> "Duration over time"
-        ProgressMetric.DistanceMeters -> "Distance over time"
-    }
 
-    LaunchedEffect(progress) {
+    val ownedScrollState = rememberVicoScrollState(
+        scrollEnabled = true,
+        initialScroll = Scroll.Absolute.End,
+    )
+    val visibleXCount = remember(progress.size) {
+        progress.size.coerceIn(1, 6).toDouble()
+    }
+    val ownedZoomState = rememberVicoZoomState(
+        zoomEnabled = true,
+        initialZoom = remember(visibleXCount) {
+            Zoom.max(Zoom.fixed(), Zoom.x(visibleXCount))
+        },
+        minZoom = Zoom.Content,
+    )
+    val effectiveScroll = scrollState ?: ownedScrollState
+    val effectiveZoom = zoomState ?: ownedZoomState
+
+    LaunchedEffect(progress, yValues, showBodyWeight) {
         chartReady = false
-        val primaryYs = progress.map { it.metricValue }
         val bodyXs = mutableListOf<Double>()
         val bodyYs = mutableListOf<Double>()
         if (showBodyWeight) {
@@ -414,7 +490,7 @@ fun ProgressChart(
         }
         modelProducer.runTransaction {
             lineSeries {
-                series(y = primaryYs)
+                series(y = yValues)
                 if (bodyXs.isNotEmpty()) {
                     series(x = bodyXs, y = bodyYs)
                 }
@@ -432,12 +508,12 @@ fun ProgressChart(
     ) {
         AppCard(modifier = modifier) {
             Text(
-                text = "Progress",
+                text = title,
                 style = MaterialTheme.typography.titleMedium,
                 color = MaterialTheme.colorScheme.onSurface,
             )
             Text(
-                text = subtitle,
+                text = resolvedSubtitle,
                 style = MaterialTheme.typography.bodySmall,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
                 modifier = Modifier.padding(top = 4.dp),
@@ -446,7 +522,11 @@ fun ProgressChart(
                 horizontalArrangement = Arrangement.spacedBy(16.dp),
                 modifier = Modifier.padding(top = 8.dp, bottom = 12.dp),
             ) {
-                Text(primaryLabel, color = AccentBlue, style = MaterialTheme.typography.labelMedium)
+                Text(
+                    resolvedPrimaryLabel,
+                    color = AccentBlue,
+                    style = MaterialTheme.typography.labelMedium,
+                )
                 if (showBodyWeight) {
                     Text(
                         "Body weight",
@@ -485,6 +565,8 @@ fun ProgressChart(
                         ),
                     ),
                     modelProducer = modelProducer,
+                    scrollState = effectiveScroll,
+                    zoomState = effectiveZoom,
                     modifier = Modifier
                         .fillMaxWidth()
                         .height(260.dp),

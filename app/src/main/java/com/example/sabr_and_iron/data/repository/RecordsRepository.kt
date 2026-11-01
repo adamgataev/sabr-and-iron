@@ -142,14 +142,22 @@ class RecordsRepository(
                         )
                     }
                     ExerciseType.DistanceTime -> {
-                        val best = workoutRows.mapNotNull { it.distanceMeters }.maxOrNull()
-                            ?: return@mapNotNull null
+                        // Same set as PR rule: max distance, shorter duration on ties.
+                        val best = workoutRows
+                            .mapNotNull { row -> row.distanceMeters?.let { it to row } }
+                            .maxWithOrNull(
+                                compareBy<Pair<Double, SetMetricRow>> { it.first }
+                                    .thenByDescending { it.second.durationSeconds ?: Int.MAX_VALUE }
+                                    .thenBy { it.second.performedAt },
+                            ) ?: return@mapNotNull null
+                        val row = best.second
                         ProgressPoint(
-                            exerciseId = sample.exerciseId,
-                            performedAt = sample.performedAt,
-                            metricValue = best,
+                            exerciseId = row.exerciseId,
+                            performedAt = row.performedAt,
+                            metricValue = best.first,
                             metric = ProgressMetric.DistanceMeters,
-                            bodyWeightKg = sample.bodyWeightKg,
+                            bodyWeightKg = row.bodyWeightKg,
+                            secondaryMetricValue = row.durationSeconds?.toDouble(),
                         )
                     }
                 }
