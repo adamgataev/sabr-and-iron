@@ -5,7 +5,6 @@ import android.net.Uri
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
 import com.example.sabr_and_iron.SabrIronApplication
-import com.example.sabr_and_iron.data.local.DummyDataSeeder
 import com.example.sabr_and_iron.data.local.model.PersonalRecord
 import com.example.sabr_and_iron.data.local.model.ProgressPoint
 import kotlinx.coroutines.flow.Flow
@@ -27,7 +26,6 @@ class RecordsViewModel(application: Application) : AndroidViewModel(application)
     private val app = application as SabrIronApplication
     private val recordsRepository = app.recordsRepository
     private val backupRepository = app.backupRepository
-    private val dummyDataSeeder = app.dummyDataSeeder
 
     private val _sort = MutableStateFlow(RecordsSort.Alphabetical)
     val sort: StateFlow<RecordsSort> = _sort.asStateFlow()
@@ -98,27 +96,10 @@ class RecordsViewModel(application: Application) : AndroidViewModel(application)
         }
     }
 
-    fun loadSampleData() {
-        viewModelScope.launch {
-            runCatching { dummyDataSeeder.seedIfEmpty() }
-                .onSuccess { result ->
-                    _message.value = when (result) {
-                        DummyDataSeeder.SeedResult.Inserted ->
-                            "Sample data loaded (routines + workouts)"
-                        DummyDataSeeder.SeedResult.AlreadyPopulated ->
-                            "Workouts already exist — sample data skipped"
-                    }
-                }
-                .onFailure { _message.value = it.message ?: "Sample data failed" }
-        }
-    }
-
     fun clearAllData() {
         viewModelScope.launch {
-            runCatching { dummyDataSeeder.clearAll() }
-                .onSuccess {
-                    _message.value = "All data cleared — exercise library restored"
-                }
+            runCatching { backupRepository.clearAll() }
+                .onSuccess { _message.value = "All data cleared" }
                 .onFailure { _message.value = it.message ?: "Clear failed" }
         }
     }

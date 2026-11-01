@@ -60,6 +60,20 @@ class BackupRepository(
         restoreBackup(backup)
     }
 
+    suspend fun clearAll() = withContext(Dispatchers.IO) {
+        database.withTransaction {
+            val workoutDao = database.workoutDao()
+            val routineDao = database.routineDao()
+            val exerciseDao = database.exerciseDao()
+            workoutDao.deleteAllSets()
+            workoutDao.deleteAllWorkoutExercises()
+            workoutDao.deleteAllWorkouts()
+            routineDao.deleteAllRoutineExercises()
+            routineDao.deleteAllRoutines()
+            exerciseDao.deleteAll()
+        }
+    }
+
     suspend fun exportExcel(): File = withContext(Dispatchers.IO) {
         val backup = collectBackup()
         val exercisesById = backup.exercises.associateBy { it.id }

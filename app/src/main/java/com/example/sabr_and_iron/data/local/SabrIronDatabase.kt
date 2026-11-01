@@ -16,9 +16,6 @@ import com.example.sabr_and_iron.data.local.entity.RoutineExerciseEntity
 import com.example.sabr_and_iron.data.local.entity.SetEntity
 import com.example.sabr_and_iron.data.local.entity.WorkoutEntity
 import com.example.sabr_and_iron.data.local.entity.WorkoutExerciseEntity
-import kotlinx.coroutines.CoroutineScope
-import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.launch
 
 @Database(
     entities = [
@@ -29,7 +26,7 @@ import kotlinx.coroutines.launch
         WorkoutExerciseEntity::class,
         SetEntity::class,
     ],
-    version = 3,
+    version = 4,
     exportSchema = true,
 )
 @TypeConverters(Converters::class)
@@ -54,6 +51,18 @@ abstract class SabrIronDatabase : RoomDatabase() {
             }
         }
 
+        /** Drop seeded library and sample workouts from earlier builds. */
+        private val MIGRATION_3_4 = object : Migration(3, 4) {
+            override fun migrate(db: SupportSQLiteDatabase) {
+                db.execSQL("DELETE FROM sets")
+                db.execSQL("DELETE FROM workout_exercises")
+                db.execSQL("DELETE FROM workouts")
+                db.execSQL("DELETE FROM routine_exercises")
+                db.execSQL("DELETE FROM routines")
+                db.execSQL("DELETE FROM exercises")
+            }
+        }
+
         @Volatile
         private var instance: SabrIronDatabase? = null
 
@@ -63,22 +72,9 @@ abstract class SabrIronDatabase : RoomDatabase() {
             }
         }
 
-        private fun buildDatabase(context: Context): SabrIronDatabase {
-            lateinit var database: SabrIronDatabase
-            database = Room.databaseBuilder(context, SabrIronDatabase::class.java, DATABASE_NAME)
-                .addMigrations(MIGRATION_1_2, MIGRATION_2_3)
-                .addCallback(
-                    object : Callback() {
-                        override fun onCreate(db: SupportSQLiteDatabase) {
-                            super.onCreate(db)
-                            CoroutineScope(Dispatchers.IO).launch {
-                                database.exerciseDao().insertAll(DefaultExercises.seed)
-                            }
-                        }
-                    },
-                )
+        private fun buildDatabase(context: Context): SabrIronDatabase =
+            Room.databaseBuilder(context, SabrIronDatabase::class.java, DATABASE_NAME)
+                .addMigrations(MIGRATION_1_2, MIGRATION_2_3, MIGRATION_3_4)
                 .build()
-            return database
-        }
     }
 }

@@ -129,12 +129,6 @@ fun SettingsScreen(
         ) {
             Text("Import Excel")
         }
-        OutlinedButton(
-            onClick = { viewModel.loadSampleData() },
-            modifier = Modifier.fillMaxWidth(),
-        ) {
-            Text("Load sample data")
-        }
         TextButton(
             onClick = { confirmClear = true },
             modifier = Modifier.fillMaxWidth(),
@@ -146,7 +140,7 @@ fun SettingsScreen(
     if (confirmClear) {
         ConfirmDeleteDialog(
             title = "Clear all data?",
-            body = "This deletes workouts, routines, and custom exercises. The default exercise library will be restored.",
+            body = "This deletes workouts, routines, and exercises stored on this device.",
             confirmLabel = "Clear all",
             onConfirm = {
                 confirmClear = false
