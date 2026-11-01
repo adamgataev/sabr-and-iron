@@ -902,7 +902,11 @@ private fun SetInputFields(
         -> {
             Row(
                 horizontalArrangement = Arrangement.spacedBy(8.dp),
-                verticalAlignment = Alignment.CenterVertically,
+                verticalAlignment = if (inlineDifficulty) {
+                    Alignment.Bottom
+                } else {
+                    Alignment.CenterVertically
+                },
             ) {
                 OutlinedTextField(
                     value = addedWeight,
@@ -972,7 +976,7 @@ private fun SetInputFields(
             if (inlineDifficulty) {
                 Row(
                     horizontalArrangement = Arrangement.spacedBy(8.dp),
-                    verticalAlignment = Alignment.CenterVertically,
+                    verticalAlignment = Alignment.Bottom,
                 ) {
                     OutlinedTextField(
                         value = durationMinutes,
