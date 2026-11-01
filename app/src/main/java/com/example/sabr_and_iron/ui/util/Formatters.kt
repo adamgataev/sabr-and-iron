@@ -13,6 +13,9 @@ fun formatDateTime(epochMillis: Long): String =
 fun formatDate(epochMillis: Long): String =
     SimpleDateFormat("d MMM yyyy", Locale.getDefault()).format(Date(epochMillis))
 
+fun formatYearMonth(epochMillis: Long): String =
+    SimpleDateFormat("yyyy MMMM", Locale.getDefault()).format(Date(epochMillis))
+
 fun formatChartAxisDate(epochMillis: Long): String =
     SimpleDateFormat("dd/MM/yyyy", Locale.getDefault()).format(Date(epochMillis))
 

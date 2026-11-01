@@ -152,6 +152,8 @@ fun SabrIronApp() {
                         RecordsSortMenu(
                             viewModel = viewModel(viewModelStoreOwner = recordsEntry),
                         )
+                    }
+                    if (isTabRoot) {
                         IconButton(onClick = { navController.navigate(Routes.Settings) }) {
                             Icon(
                                 Icons.Filled.Settings,
@@ -311,12 +313,7 @@ fun SabrIronApp() {
                 )
             }
             composable(Routes.Settings) {
-                val recordsEntry = navController.getBackStackEntry(
-                    AppDestination.Records.route,
-                )
-                SettingsScreen(
-                    viewModel = viewModel(viewModelStoreOwner = recordsEntry),
-                )
+                SettingsScreen()
             }
             composable(
                 route = Routes.RecordDetail,

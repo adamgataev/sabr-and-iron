@@ -33,7 +33,7 @@ enum class AppDestination(
     ),
     Workouts(
         route = "workouts",
-        title = "Workouts Overview",
+        title = "Workouts",
         label = "Workouts",
         icon = Icons.Filled.FitnessCenter,
     ),
