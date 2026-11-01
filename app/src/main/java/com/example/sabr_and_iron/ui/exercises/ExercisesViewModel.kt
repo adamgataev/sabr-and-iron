@@ -29,9 +29,6 @@ class ExercisesViewModel(application: Application) : AndroidViewModel(applicatio
         query.value = value
     }
 
-    suspend fun isNameTaken(name: String, excludingId: Long): Boolean =
-        repository.isNameTaken(name, excludingId)
-
     fun save(
         id: Long,
         name: String,

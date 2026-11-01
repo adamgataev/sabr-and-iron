@@ -45,7 +45,6 @@ import com.example.sabr_and_iron.ui.components.FloatingIslandTopClearance
 import com.example.sabr_and_iron.ui.components.LocalAppSnackbar
 import com.example.sabr_and_iron.ui.theme.ErrorVibrant
 import com.example.sabr_and_iron.ui.theme.color
-import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.flowOf
 import kotlinx.coroutines.launch
 
@@ -75,8 +74,7 @@ fun ExerciseEditorScreen(
     var starting by remember { mutableStateOf("") }
     var rest by remember { mutableStateOf("") }
     var typeExpanded by remember { mutableStateOf(false) }
-    var nameTaken by remember { mutableStateOf(false) }
-    var checkingName by remember { mutableStateOf(false) }
+    var duplicateKey by remember { mutableStateOf(false) }
     var confirmDelete by remember { mutableStateOf(false) }
     val snackbar = LocalAppSnackbar.current
     val scope = rememberCoroutineScope()
@@ -89,7 +87,7 @@ fun ExerciseEditorScreen(
             type = exercise.exerciseType
             starting = exercise.startingResistanceKg?.toString().orEmpty()
             rest = exercise.defaultRestSeconds?.toString().orEmpty()
-            nameTaken = false
+            duplicateKey = false
         }
     }
 
@@ -97,20 +95,6 @@ fun ExerciseEditorScreen(
         if (deleteTick > 0 && existing != null) {
             confirmDelete = true
         }
-    }
-
-    LaunchedEffect(name, existing?.id, exerciseId) {
-        val trimmed = name.trim()
-        nameTaken = false
-        if (trimmed.isEmpty()) {
-            checkingName = false
-            return@LaunchedEffect
-        }
-        checkingName = true
-        delay(450)
-        val excludeId = existing?.id ?: exerciseId?.takeIf { it > 0 } ?: 0L
-        nameTaken = viewModel.isNameTaken(trimmed, excludingId = excludeId)
-        checkingName = false
     }
 
     Column(
@@ -130,15 +114,18 @@ fun ExerciseEditorScreen(
         ) {
             OutlinedTextField(
                 value = name,
-                onValueChange = { name = it },
+                onValueChange = {
+                    name = it
+                    duplicateKey = false
+                },
                 label = { Text("Name") },
                 modifier = Modifier.fillMaxWidth(),
                 singleLine = true,
-                isError = nameTaken,
-                supportingText = if (nameTaken) {
+                isError = duplicateKey,
+                supportingText = if (duplicateKey) {
                     {
                         Text(
-                            text = "You've already used this name for an exercise",
+                            text = "You've already used this name and machine for an exercise",
                             color = ErrorVibrant,
                         )
                     }
@@ -155,10 +142,20 @@ fun ExerciseEditorScreen(
             )
             OutlinedTextField(
                 value = machine,
-                onValueChange = { machine = it },
+                onValueChange = {
+                    machine = it
+                    duplicateKey = false
+                },
                 label = { Text("Machine (optional)") },
                 modifier = Modifier.fillMaxWidth(),
                 singleLine = true,
+                isError = duplicateKey,
+                colors = OutlinedTextFieldDefaults.colors(
+                    errorBorderColor = ErrorVibrant,
+                    errorLabelColor = ErrorVibrant,
+                    errorCursorColor = ErrorVibrant,
+                    errorTrailingIconColor = ErrorVibrant,
+                ),
             )
             Text("Targeted muscles", style = MaterialTheme.typography.labelLarge)
             FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
@@ -286,7 +283,7 @@ fun ExerciseEditorScreen(
         ) {
             Button(
                 onClick = {
-                    if (name.isBlank() || muscles.isEmpty() || nameTaken || checkingName) return@Button
+                    if (name.isBlank() || muscles.isEmpty()) return@Button
                     viewModel.save(
                         id = exerciseId ?: 0L,
                         name = name,
@@ -297,13 +294,13 @@ fun ExerciseEditorScreen(
                             .takeIf { type.usesStartingResistance },
                         defaultRestSeconds = rest.toIntOrNull(),
                         onDone = { onDone() },
-                        onError = { nameTaken = true },
+                        onError = { duplicateKey = true },
                     )
                 },
                 modifier = Modifier
                     .fillMaxWidth()
                     .align(Alignment.TopCenter),
-                enabled = name.isNotBlank() && muscles.isNotEmpty() && !nameTaken && !checkingName,
+                enabled = name.isNotBlank() && muscles.isNotEmpty(),
             ) {
                 Text("Save")
             }

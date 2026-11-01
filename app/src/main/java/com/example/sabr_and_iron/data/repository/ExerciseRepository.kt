@@ -16,17 +16,26 @@ class ExerciseRepository(
 
     suspend fun getById(id: Long): ExerciseEntity? = exerciseDao.getById(id)
 
-    /** Case-insensitive uniqueness check; [excludingId] is ignored (current exercise when editing). */
-    suspend fun isNameTaken(name: String, excludingId: Long = 0L): Boolean {
-        val trimmed = name.trim()
-        if (trimmed.isEmpty()) return false
-        val existing = exerciseDao.findByName(trimmed) ?: return false
+    /**
+     * Case-insensitive uniqueness on name + machine.
+     * Blank/`null` machine is treated as empty. [excludingId] is ignored (current exercise when editing).
+     */
+    suspend fun isNameMachineTaken(
+        name: String,
+        machine: String?,
+        excludingId: Long = 0L,
+    ): Boolean {
+        val trimmedName = name.trim()
+        if (trimmedName.isEmpty()) return false
+        val normalizedMachine = machine?.trim().orEmpty()
+        val existing = exerciseDao.findByNameAndMachine(trimmedName, normalizedMachine)
+            ?: return false
         return existing.id != excludingId
     }
 
     suspend fun upsert(exercise: ExerciseEntity): Long {
-        if (isNameTaken(exercise.name, excludingId = exercise.id)) {
-            error("An exercise with this name already exists")
+        if (isNameMachineTaken(exercise.name, exercise.machine, excludingId = exercise.id)) {
+            error("An exercise with this name and machine already exists")
         }
         return if (exercise.id == 0L) {
             exerciseDao.insert(exercise)

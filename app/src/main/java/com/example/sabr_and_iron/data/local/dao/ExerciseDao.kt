@@ -37,10 +37,11 @@ interface ExerciseDao {
         """
         SELECT * FROM exercises
         WHERE name = :name COLLATE NOCASE
+          AND IFNULL(machine, '') = :machine COLLATE NOCASE
         LIMIT 1
         """,
     )
-    suspend fun findByName(name: String): ExerciseEntity?
+    suspend fun findByNameAndMachine(name: String, machine: String): ExerciseEntity?
 
     @Query("SELECT COUNT(*) FROM exercises")
     suspend fun count(): Int
