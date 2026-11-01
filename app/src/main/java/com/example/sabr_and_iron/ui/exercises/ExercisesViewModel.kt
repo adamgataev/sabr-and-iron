@@ -35,6 +35,7 @@ class ExercisesViewModel(application: Application) : AndroidViewModel(applicatio
     fun save(
         id: Long,
         name: String,
+        machine: String?,
         muscles: List<MuscleGroup>,
         type: ExerciseType,
         startingResistanceKg: Double?,
@@ -48,6 +49,7 @@ class ExercisesViewModel(application: Application) : AndroidViewModel(applicatio
                     ExerciseEntity(
                         id = id,
                         name = name.trim(),
+                        machine = machine?.trim()?.takeIf { it.isNotEmpty() },
                         targetedMuscles = muscles,
                         exerciseType = type,
                         startingResistanceKg = startingResistanceKg,

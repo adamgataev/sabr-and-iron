@@ -54,6 +54,7 @@ object DefaultExercises {
         ),
         ExerciseEntity(
             name = "Assisted Pull-up",
+            machine = "Assisted pull-up",
             targetedMuscles = listOf(MuscleGroup.Back, MuscleGroup.Arms),
             exerciseType = ExerciseType.Assisted,
             startingResistanceKg = null,
@@ -68,6 +69,7 @@ object DefaultExercises {
         ),
         ExerciseEntity(
             name = "Lat Pulldown",
+            machine = "Lat pulldown",
             targetedMuscles = listOf(MuscleGroup.Back),
             exerciseType = ExerciseType.Regular,
             startingResistanceKg = null,
@@ -103,6 +105,7 @@ object DefaultExercises {
         ),
         ExerciseEntity(
             name = "Triceps Pushdown",
+            machine = "Cable stack",
             targetedMuscles = listOf(MuscleGroup.Arms),
             exerciseType = ExerciseType.Regular,
             startingResistanceKg = null,
@@ -110,6 +113,7 @@ object DefaultExercises {
         ),
         ExerciseEntity(
             name = "Seated Cable Row",
+            machine = "Seated cable row",
             targetedMuscles = listOf(MuscleGroup.Back),
             exerciseType = ExerciseType.Regular,
             startingResistanceKg = null,
@@ -117,6 +121,7 @@ object DefaultExercises {
         ),
         ExerciseEntity(
             name = "Leg Press",
+            machine = "Leg press",
             targetedMuscles = listOf(MuscleGroup.Legs),
             exerciseType = ExerciseType.Regular,
             startingResistanceKg = null,

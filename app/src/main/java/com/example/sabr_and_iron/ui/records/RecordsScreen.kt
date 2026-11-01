@@ -29,13 +29,10 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.layout.onSizeChanged
-import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
@@ -137,13 +134,7 @@ fun RecordsScreen(
     val records by viewModel.records.collectAsStateWithLifecycle()
     val message by viewModel.message.collectAsStateWithLifecycle()
     val snackbar = LocalAppSnackbar.current
-    val density = LocalDensity.current
-    var maxTileHeightPx by remember { mutableIntStateOf(0) }
     val rows = remember(records) { records.chunked(2) }
-
-    LaunchedEffect(records) {
-        maxTileHeightPx = 0
-    }
 
     LaunchedEffect(message) {
         message?.let {
@@ -159,11 +150,6 @@ fun RecordsScreen(
                 subtitle = "PRs and progress charts will appear here.",
             )
         } else {
-            val tileHeightModifier = if (maxTileHeightPx > 0) {
-                Modifier.height(with(density) { maxTileHeightPx.toDp() })
-            } else {
-                Modifier.fillMaxHeight()
-            }
             LazyColumn(
                 contentPadding = PaddingValues(
                     start = 16.dp,
@@ -189,12 +175,7 @@ fun RecordsScreen(
                                 onClick = { onOpenRecord(record.exerciseId) },
                                 modifier = Modifier
                                     .weight(1f)
-                                    .then(tileHeightModifier)
-                                    .onSizeChanged { size ->
-                                        if (size.height > maxTileHeightPx) {
-                                            maxTileHeightPx = size.height
-                                        }
-                                    },
+                                    .fillMaxHeight(),
                             )
                         }
                         if (row.size == 1) {
@@ -221,12 +202,23 @@ private fun RecordTile(
             maxLines = 2,
             overflow = TextOverflow.Ellipsis,
         )
+        record.machine?.takeIf { it.isNotBlank() }?.let { machine ->
+            Text(
+                text = machine,
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                modifier = Modifier.padding(top = 4.dp),
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis,
+            )
+        }
         Text(
             text = record.exerciseType.label,
             style = MaterialTheme.typography.labelSmall,
             color = MaterialTheme.colorScheme.onSurfaceVariant,
             modifier = Modifier.padding(top = 4.dp),
         )
+        Spacer(modifier = Modifier.weight(1f))
         Text(
             text = formatRecordSummary(record),
             style = MaterialTheme.typography.titleMedium,
@@ -289,6 +281,13 @@ fun RecordDetailScreen(
                 style = MaterialTheme.typography.headlineSmall,
                 color = MaterialTheme.colorScheme.onSurface,
             )
+            record.machine?.takeIf { it.isNotBlank() }?.let { machine ->
+                Text(
+                    text = machine,
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+            }
             Text(
                 text = record.exerciseType.label,
                 style = MaterialTheme.typography.labelLarge,

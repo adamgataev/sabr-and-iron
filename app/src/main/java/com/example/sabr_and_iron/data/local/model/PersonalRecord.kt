@@ -4,6 +4,7 @@ data class PersonalRecord(
     val exerciseId: Long,
     val exerciseName: String,
     val exerciseType: ExerciseType,
+    val machine: String? = null,
     val performedAt: Long,
     /** Best load (kg) for Regular / Weighted / Assisted. */
     val effectiveWeightKg: Double? = null,

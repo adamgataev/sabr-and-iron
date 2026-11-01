@@ -4,6 +4,7 @@ import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.ColumnScope
 import androidx.compose.foundation.layout.PaddingValues
+import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -55,7 +56,9 @@ fun AppCard(
             elevation = CardDefaults.cardElevation(defaultElevation = 0.dp),
         ) {
             Column(
-                Modifier.padding(contentPadding),
+                Modifier
+                    .fillMaxHeight()
+                    .padding(contentPadding),
                 content = content,
             )
         }
@@ -68,7 +71,9 @@ fun AppCard(
             elevation = CardDefaults.cardElevation(defaultElevation = 0.dp),
         ) {
             Column(
-                Modifier.padding(contentPadding),
+                Modifier
+                    .fillMaxHeight()
+                    .padding(contentPadding),
                 content = content,
             )
         }

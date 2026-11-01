@@ -5,6 +5,7 @@ import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
 import com.example.sabr_and_iron.SabrIronApplication
 import com.example.sabr_and_iron.data.local.entity.WorkoutEntity
+import com.example.sabr_and_iron.data.local.model.MuscleGroup
 import com.example.sabr_and_iron.data.local.model.SetDifficulty
 import com.example.sabr_and_iron.data.repository.AddExerciseResult
 import com.example.sabr_and_iron.data.repository.AddExercisesResult
@@ -14,6 +15,7 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
+import java.util.Calendar
 
 enum class WorkoutsViewMode {
     List,
@@ -28,6 +30,10 @@ class WorkoutsViewModel(application: Application) : AndroidViewModel(application
 
     val summaries = workoutRepository.observeSummaries()
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), emptyList())
+
+    val musclesByDay: StateFlow<Map<Long, List<MuscleGroup>>> =
+        workoutRepository.observeMusclesByDay(::startOfDayMillis)
+            .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), emptyMap())
 
     private val _viewMode = MutableStateFlow(WorkoutsViewMode.Calendar)
     val viewMode: StateFlow<WorkoutsViewMode> = _viewMode.asStateFlow()
@@ -199,4 +205,15 @@ class WorkoutsViewModel(application: Application) : AndroidViewModel(application
     }
 
     suspend fun getExercise(id: Long) = exerciseRepository.getById(id)
+}
+
+private fun startOfDayMillis(epochMillis: Long): Long {
+    val cal = Calendar.getInstance().apply {
+        timeInMillis = epochMillis
+        set(Calendar.HOUR_OF_DAY, 0)
+        set(Calendar.MINUTE, 0)
+        set(Calendar.SECOND, 0)
+        set(Calendar.MILLISECOND, 0)
+    }
+    return cal.timeInMillis
 }

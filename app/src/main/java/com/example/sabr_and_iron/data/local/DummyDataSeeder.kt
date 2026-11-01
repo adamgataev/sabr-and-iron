@@ -58,10 +58,18 @@ class DummyDataSeeder(
                 exerciseDao.insert(seedExercise)
             }
         }
+        val refreshed = exerciseDao.getAll().associateBy { it.name }
         // Upgrade known type changes for demos (Plank → TimeOnly)
-        existing["Plank"]?.let { plank ->
+        refreshed["Plank"]?.let { plank ->
             if (plank.exerciseType != ExerciseType.TimeOnly) {
                 exerciseDao.update(plank.copy(exerciseType = ExerciseType.TimeOnly))
+            }
+        }
+        // Backfill machine on known seed exercises for sample/library refresh
+        DefaultExercises.seed.forEach { seedExercise ->
+            val current = refreshed[seedExercise.name] ?: return@forEach
+            if (seedExercise.machine != null && current.machine != seedExercise.machine) {
+                exerciseDao.update(current.copy(machine = seedExercise.machine))
             }
         }
     }

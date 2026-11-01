@@ -12,6 +12,7 @@ import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.aspectRatio
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.lazy.LazyColumn
@@ -40,10 +41,12 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
+import com.example.sabr_and_iron.data.local.model.MuscleGroup
 import com.example.sabr_and_iron.data.local.model.WorkoutSummary
 import com.example.sabr_and_iron.ui.components.AppCard
 import com.example.sabr_and_iron.ui.components.EmptyState
 import com.example.sabr_and_iron.ui.components.FloatingIslandListBottomPadding
+import com.example.sabr_and_iron.ui.theme.color
 import com.example.sabr_and_iron.ui.util.formatDateTime
 import com.example.sabr_and_iron.ui.util.formatKg
 import com.example.sabr_and_iron.ui.util.formatYearMonth
@@ -58,6 +61,7 @@ fun WorkoutsScreen(
     viewModel: WorkoutsViewModel = viewModel(),
 ) {
     val summaries by viewModel.summaries.collectAsStateWithLifecycle()
+    val musclesByDay by viewModel.musclesByDay.collectAsStateWithLifecycle()
     val viewMode by viewModel.viewMode.collectAsStateWithLifecycle()
     val monthGroups = remember(summaries) { groupWorkoutsByYearMonth(summaries) }
 
@@ -72,6 +76,7 @@ fun WorkoutsScreen(
         viewMode == WorkoutsViewMode.Calendar -> {
             WorkoutsCalendarView(
                 summaries = summaries,
+                musclesByDay = musclesByDay,
                 onOpenWorkout = onOpenWorkout,
                 modifier = modifier,
             )
@@ -115,6 +120,7 @@ fun WorkoutsScreen(
 @Composable
 private fun WorkoutsCalendarView(
     summaries: List<WorkoutSummary>,
+    musclesByDay: Map<Long, List<MuscleGroup>>,
     onOpenWorkout: (Long) -> Unit,
     modifier: Modifier = Modifier,
 ) {
@@ -228,7 +234,7 @@ private fun WorkoutsCalendarView(
                                         dayOfMonth = day.dayOfMonth,
                                         selected = day.dayStart == selectedDayStart,
                                         isToday = day.dayStart == todayStart,
-                                        hasWorkout = workoutsByDay.containsKey(day.dayStart),
+                                        muscles = musclesByDay[day.dayStart].orEmpty(),
                                         onClick = { selectedDayStart = day.dayStart },
                                     )
                                 } else {
@@ -272,7 +278,7 @@ private fun CalendarDayCell(
     dayOfMonth: Int,
     selected: Boolean,
     isToday: Boolean,
-    hasWorkout: Boolean,
+    muscles: List<MuscleGroup>,
     onClick: () -> Unit,
 ) {
     val bg = when {
@@ -283,6 +289,7 @@ private fun CalendarDayCell(
         selected -> MaterialTheme.colorScheme.onPrimary
         else -> MaterialTheme.colorScheme.onSurface
     }
+    val dotSize = if (selected) 6.dp else 5.dp
     Column(
         modifier = Modifier
             .aspectRatio(1f)
@@ -305,19 +312,22 @@ private fun CalendarDayCell(
             style = MaterialTheme.typography.bodyMedium,
             color = fg,
         )
-        Box(
+        Row(
             modifier = Modifier
                 .padding(top = 2.dp)
-                .size(5.dp)
-                .clip(CircleShape)
-                .background(
-                    when {
-                        !hasWorkout -> MaterialTheme.colorScheme.background.copy(alpha = 0f)
-                        selected -> MaterialTheme.colorScheme.onPrimary
-                        else -> MaterialTheme.colorScheme.primary
-                    },
-                ),
-        )
+                .height(6.dp),
+            horizontalArrangement = Arrangement.spacedBy(2.dp),
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            muscles.forEach { muscle ->
+                Box(
+                    modifier = Modifier
+                        .size(dotSize)
+                        .clip(CircleShape)
+                        .background(muscle.color),
+                )
+            }
+        }
     }
 }
 

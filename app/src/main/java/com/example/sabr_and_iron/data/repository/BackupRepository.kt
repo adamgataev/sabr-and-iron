@@ -69,7 +69,7 @@ class BackupRepository(
             workbook = workbook,
             name = SHEET_EXERCISES,
             headers = listOf(
-                "id", "name", "targetedMuscles", "exerciseType",
+                "id", "name", "machine", "targetedMuscles", "exerciseType",
                 "startingResistanceKg", "defaultRestSeconds",
             ),
         ) { sheet ->
@@ -77,10 +77,11 @@ class BackupRepository(
                 val row = sheet.createRow(index + 1)
                 row.setNumber(0, item.id.toDouble())
                 row.setText(1, item.name)
-                row.setText(2, item.targetedMuscles.joinToString(","))
-                row.setText(3, item.exerciseType)
-                item.startingResistanceKg?.let { row.setNumber(4, it) }
-                item.defaultRestSeconds?.let { row.setNumber(5, it.toDouble()) }
+                item.machine?.let { row.setText(2, it) }
+                row.setText(3, item.targetedMuscles.joinToString(","))
+                row.setText(4, item.exerciseType)
+                item.startingResistanceKg?.let { row.setNumber(5, it) }
+                item.defaultRestSeconds?.let { row.setNumber(6, it.toDouble()) }
             }
         }
 
@@ -274,6 +275,7 @@ class BackupRepository(
                     ExerciseEntity(
                         id = it.id,
                         name = it.name,
+                        machine = it.machine?.trim()?.takeIf { value -> value.isNotEmpty() },
                         targetedMuscles = it.targetedMuscles.map { name ->
                             parseEnum(name, MuscleGroup::valueOf, "MuscleGroup")
                         },
@@ -381,6 +383,7 @@ class BackupRepository(
                 ExerciseBackup(
                     id = it.id,
                     name = it.name,
+                    machine = it.machine,
                     targetedMuscles = it.targetedMuscles.map(MuscleGroup::name),
                     exerciseType = it.exerciseType.name,
                     startingResistanceKg = it.startingResistanceKg,
@@ -462,6 +465,7 @@ class BackupRepository(
         val headers = headerIndex(sheet)
         val idCol = requireColumn(headers, "id", sheet.sheetName)
         val nameCol = requireColumn(headers, "name", sheet.sheetName)
+        val machineCol = headers["machine"]
         val musclesCol = requireColumn(headers, "targetedMuscles", sheet.sheetName)
         val typeCol = requireColumn(headers, "exerciseType", sheet.sheetName)
         val startingCol = headers["startingResistanceKg"]
@@ -470,6 +474,7 @@ class BackupRepository(
             ExerciseBackup(
                 id = row.requireLong(idCol, "id"),
                 name = row.requireText(nameCol, "name"),
+                machine = machineCol?.let { row.textOrNull(it) },
                 targetedMuscles = row.textOrNull(musclesCol)
                     ?.split(",")
                     ?.map { it.trim() }

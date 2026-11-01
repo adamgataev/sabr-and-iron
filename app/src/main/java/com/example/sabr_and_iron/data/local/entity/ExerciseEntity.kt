@@ -9,6 +9,7 @@ import com.example.sabr_and_iron.data.local.model.MuscleGroup
 data class ExerciseEntity(
     @PrimaryKey(autoGenerate = true) val id: Long = 0,
     val name: String,
+    val machine: String? = null,
     val targetedMuscles: List<MuscleGroup>,
     val exerciseType: ExerciseType,
     val startingResistanceKg: Double? = null,

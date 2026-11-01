@@ -39,7 +39,6 @@ import androidx.compose.material3.Tab
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -57,13 +56,13 @@ import androidx.compose.ui.window.Dialog
 import androidx.compose.ui.window.DialogProperties
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
+import com.example.sabr_and_iron.SabrIronApplication
 import com.example.sabr_and_iron.data.local.entity.ExerciseEntity
 import com.example.sabr_and_iron.data.local.entity.SetEntity
 import com.example.sabr_and_iron.data.local.model.ExerciseHistoryEntry
 import com.example.sabr_and_iron.data.local.model.ExerciseType
 import com.example.sabr_and_iron.data.local.model.SetDifficulty
 import com.example.sabr_and_iron.data.local.model.effectiveLoadKg
-import com.example.sabr_and_iron.timer.RestTimerController
 import com.example.sabr_and_iron.ui.components.AppCard
 import com.example.sabr_and_iron.ui.components.ConfirmDeleteDialog
 import com.example.sabr_and_iron.ui.util.formatDate
@@ -115,14 +114,12 @@ fun ActiveExerciseScreen(
     val history by viewModel.observeHistory(historyExerciseId, workoutExerciseId)
         .collectAsStateWithLifecycle(emptyList())
 
-    val timer = remember {
-        RestTimerController(context.applicationContext, scope)
+    val timer = remember(context) {
+        (context.applicationContext as SabrIronApplication).restTimer
     }
-    DisposableEffect(Unit) {
-        onDispose { timer.stop() }
-    }
-    LaunchedEffect(exerciseName, defaultRest) {
-        timer.configureDefault(defaultRest, exerciseName)
+    LaunchedEffect(exerciseName, defaultRest, workoutId, workoutExerciseId) {
+        val wid = workoutId ?: return@LaunchedEffect
+        timer.configureDefault(defaultRest, exerciseName, wid, workoutExerciseId)
     }
     val remaining by timer.remainingSeconds.collectAsStateWithLifecycle()
     val running by timer.running.collectAsStateWithLifecycle()
@@ -315,12 +312,24 @@ fun ActiveExerciseScreen(
                         .padding(start = 16.dp, end = 16.dp, top = 16.dp, bottom = 40.dp),
                     verticalArrangement = Arrangement.spacedBy(12.dp),
                 ) {
-                    Text(exerciseName, style = MaterialTheme.typography.headlineSmall)
-                    Text(
-                        exerciseType.label,
-                        style = MaterialTheme.typography.labelLarge,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    )
+                    val machineLabel = exercise?.machine?.takeIf { it.isNotBlank() }
+                    Column {
+                        Text(exerciseName, style = MaterialTheme.typography.headlineSmall)
+                        if (machineLabel != null) {
+                            Text(
+                                machineLabel,
+                                style = MaterialTheme.typography.bodyMedium,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                modifier = Modifier.padding(top = 6.dp),
+                            )
+                        }
+                        Text(
+                            exerciseType.label,
+                            style = MaterialTheme.typography.labelLarge,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            modifier = Modifier.padding(top = if (machineLabel != null) 4.dp else 6.dp),
+                        )
+                    }
                     MetaLine(
                         bodyWeight = bodyWeight,
                         needsBodyWeight = needsBodyWeight,

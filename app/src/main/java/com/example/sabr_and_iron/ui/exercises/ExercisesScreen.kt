@@ -1,6 +1,8 @@
 package com.example.sabr_and_iron.ui.exercises
 
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.ExperimentalLayoutApi
+import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.padding
@@ -17,6 +19,7 @@ import androidx.lifecycle.viewmodel.compose.viewModel
 import com.example.sabr_and_iron.data.local.entity.ExerciseEntity
 import com.example.sabr_and_iron.ui.components.AppCard
 import com.example.sabr_and_iron.ui.components.FloatingIslandListBottomPadding
+import com.example.sabr_and_iron.ui.theme.color
 import com.example.sabr_and_iron.ui.util.formatKg
 
 @Composable
@@ -46,6 +49,7 @@ fun ExercisesScreen(
     }
 }
 
+@OptIn(ExperimentalLayoutApi::class)
 @Composable
 private fun ExerciseListItem(
     exercise: ExerciseEntity,
@@ -58,12 +62,29 @@ private fun ExerciseListItem(
             style = MaterialTheme.typography.titleMedium,
             color = MaterialTheme.colorScheme.onSurface,
         )
-        Text(
-            text = exercise.targetedMuscles.joinToString { it.name },
-            style = MaterialTheme.typography.bodyMedium,
-            color = MaterialTheme.colorScheme.onSurfaceVariant,
-            modifier = Modifier.padding(top = 4.dp),
-        )
+        val machine = exercise.machine?.takeIf { it.isNotBlank() }
+        if (machine != null) {
+            Text(
+                text = machine,
+                style = MaterialTheme.typography.bodyMedium,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                modifier = Modifier.padding(top = 4.dp),
+            )
+        }
+        if (exercise.targetedMuscles.isNotEmpty()) {
+            FlowRow(
+                horizontalArrangement = Arrangement.spacedBy(8.dp),
+                modifier = Modifier.padding(top = 4.dp),
+            ) {
+                exercise.targetedMuscles.forEach { muscle ->
+                    Text(
+                        text = muscle.name,
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = muscle.color,
+                    )
+                }
+            }
+        }
         Text(
             text = exercise.exerciseType.label,
             style = MaterialTheme.typography.labelMedium,

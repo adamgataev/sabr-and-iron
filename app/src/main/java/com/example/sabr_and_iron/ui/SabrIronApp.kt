@@ -1,5 +1,7 @@
 package com.example.sabr_and_iron.ui
 
+import android.content.Intent
+import androidx.activity.ComponentActivity
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.WindowInsets
@@ -31,6 +33,7 @@ import androidx.compose.material3.TopAppBar
 import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
+import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableIntStateOf
@@ -40,7 +43,9 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
+import androidx.core.util.Consumer
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.navigation.NavType
@@ -49,6 +54,7 @@ import androidx.navigation.compose.composable
 import androidx.navigation.compose.currentBackStackEntryAsState
 import androidx.navigation.compose.rememberNavController
 import androidx.navigation.navArgument
+import androidx.navigation.navDeepLink
 import com.example.sabr_and_iron.ui.components.AppCardShape
 import com.example.sabr_and_iron.ui.components.LocalAppSnackbar
 import com.example.sabr_and_iron.ui.components.TabBottomChrome
@@ -74,6 +80,19 @@ import com.example.sabr_and_iron.ui.workouts.WorkoutsViewModel
 @Composable
 fun SabrIronApp() {
     val navController = rememberNavController()
+    val activity = LocalContext.current as ComponentActivity
+
+    LaunchedEffect(navController) {
+        navController.handleDeepLink(activity.intent)
+    }
+    DisposableEffect(navController, activity) {
+        val listener = Consumer<Intent> { intent ->
+            navController.handleDeepLink(intent)
+        }
+        activity.addOnNewIntentListener(listener)
+        onDispose { activity.removeOnNewIntentListener(listener) }
+    }
+
     val navBackStackEntry by navController.currentBackStackEntryAsState()
     val currentRoute = navBackStackEntry?.destination?.route
     val currentDestination = navBackStackEntry?.destination
@@ -393,6 +412,9 @@ fun SabrIronApp() {
                 arguments = listOf(
                     navArgument("workoutId") { type = NavType.LongType },
                     navArgument("workoutExerciseId") { type = NavType.LongType },
+                ),
+                deepLinks = listOf(
+                    navDeepLink { uriPattern = Routes.ActiveExerciseDeepLink },
                 ),
             ) { entry ->
                 val weId = entry.arguments?.getLong("workoutExerciseId") ?: return@composable

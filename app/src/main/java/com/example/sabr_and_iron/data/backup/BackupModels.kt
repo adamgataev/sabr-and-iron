@@ -18,6 +18,7 @@ data class AppBackup(
 data class ExerciseBackup(
     val id: Long,
     val name: String,
+    val machine: String? = null,
     val targetedMuscles: List<String>,
     val exerciseType: String,
     val startingResistanceKg: Double? = null,

@@ -19,6 +19,7 @@ import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.ExposedDropdownMenuBox
 import androidx.compose.material3.ExposedDropdownMenuDefaults
 import androidx.compose.material3.FilterChip
+import androidx.compose.material3.FilterChipDefaults
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.OutlinedTextFieldDefaults
@@ -32,6 +33,7 @@ import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
@@ -42,6 +44,7 @@ import com.example.sabr_and_iron.ui.components.ConfirmDeleteDialog
 import com.example.sabr_and_iron.ui.components.FloatingIslandTopClearance
 import com.example.sabr_and_iron.ui.components.LocalAppSnackbar
 import com.example.sabr_and_iron.ui.theme.ErrorVibrant
+import com.example.sabr_and_iron.ui.theme.color
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.flowOf
 import kotlinx.coroutines.launch
@@ -66,6 +69,7 @@ fun ExerciseEditorScreen(
     val typeLocked = existing != null
 
     var name by remember { mutableStateOf("") }
+    var machine by remember { mutableStateOf("") }
     var muscles by remember { mutableStateOf(setOf<MuscleGroup>()) }
     var type by remember { mutableStateOf(ExerciseType.Regular) }
     var starting by remember { mutableStateOf("") }
@@ -80,6 +84,7 @@ fun ExerciseEditorScreen(
     LaunchedEffect(existing) {
         existing?.let { exercise ->
             name = exercise.name
+            machine = exercise.machine.orEmpty()
             muscles = exercise.targetedMuscles.toSet()
             type = exercise.exerciseType
             starting = exercise.startingResistanceKg?.toString().orEmpty()
@@ -148,15 +153,38 @@ fun ExerciseEditorScreen(
                     errorTrailingIconColor = ErrorVibrant,
                 ),
             )
+            OutlinedTextField(
+                value = machine,
+                onValueChange = { machine = it },
+                label = { Text("Machine (optional)") },
+                modifier = Modifier.fillMaxWidth(),
+                singleLine = true,
+            )
             Text("Targeted muscles", style = MaterialTheme.typography.labelLarge)
             FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                 MuscleGroup.entries.forEach { group ->
+                    val selected = group in muscles
+                    val muscleColor = group.color
                     FilterChip(
-                        selected = group in muscles,
+                        selected = selected,
                         onClick = {
-                            muscles = if (group in muscles) muscles - group else muscles + group
+                            muscles = if (selected) muscles - group else muscles + group
                         },
                         label = { Text(group.name) },
+                        colors = FilterChipDefaults.filterChipColors(
+                            selectedContainerColor = muscleColor.copy(alpha = 0.28f),
+                            selectedLabelColor = muscleColor,
+                            selectedLeadingIconColor = muscleColor,
+                        ),
+                        border = FilterChipDefaults.filterChipBorder(
+                            enabled = true,
+                            selected = selected,
+                            borderColor = MaterialTheme.colorScheme.outline,
+                            selectedBorderColor = muscleColor,
+                            disabledBorderColor = Color.Transparent,
+                            disabledSelectedBorderColor = Color.Transparent,
+                            selectedBorderWidth = 1.5.dp,
+                        ),
                     )
                 }
             }
@@ -262,6 +290,7 @@ fun ExerciseEditorScreen(
                     viewModel.save(
                         id = exerciseId ?: 0L,
                         name = name,
+                        machine = machine,
                         muscles = muscles.toList(),
                         type = type,
                         startingResistanceKg = starting.toDoubleOrNull()

@@ -29,7 +29,7 @@ import kotlinx.coroutines.launch
         WorkoutExerciseEntity::class,
         SetEntity::class,
     ],
-    version = 2,
+    version = 3,
     exportSchema = true,
 )
 @TypeConverters(Converters::class)
@@ -48,6 +48,12 @@ abstract class SabrIronDatabase : RoomDatabase() {
             }
         }
 
+        private val MIGRATION_2_3 = object : Migration(2, 3) {
+            override fun migrate(db: SupportSQLiteDatabase) {
+                db.execSQL("ALTER TABLE exercises ADD COLUMN machine TEXT")
+            }
+        }
+
         @Volatile
         private var instance: SabrIronDatabase? = null
 
@@ -60,7 +66,7 @@ abstract class SabrIronDatabase : RoomDatabase() {
         private fun buildDatabase(context: Context): SabrIronDatabase {
             lateinit var database: SabrIronDatabase
             database = Room.databaseBuilder(context, SabrIronDatabase::class.java, DATABASE_NAME)
-                .addMigrations(MIGRATION_1_2)
+                .addMigrations(MIGRATION_1_2, MIGRATION_2_3)
                 .addCallback(
                     object : Callback() {
                         override fun onCreate(db: SupportSQLiteDatabase) {

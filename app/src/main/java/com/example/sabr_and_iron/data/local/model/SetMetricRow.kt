@@ -5,6 +5,7 @@ data class SetMetricRow(
     val exerciseId: Long,
     val exerciseName: String,
     val exerciseType: ExerciseType,
+    val machine: String? = null,
     val workoutId: Long,
     val performedAt: Long,
     val bodyWeightKg: Double?,

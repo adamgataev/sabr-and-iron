@@ -12,6 +12,7 @@ import com.example.sabr_and_iron.data.local.entity.WorkoutEntity
 import com.example.sabr_and_iron.data.local.entity.WorkoutExerciseEntity
 import com.example.sabr_and_iron.data.local.model.ExerciseHistoryEntry
 import com.example.sabr_and_iron.data.local.model.SetMetricRow
+import com.example.sabr_and_iron.data.local.model.WorkoutMuscleRow
 import com.example.sabr_and_iron.data.local.model.WorkoutSummary
 import kotlinx.coroutines.flow.Flow
 
@@ -37,6 +38,18 @@ interface WorkoutDao {
         """,
     )
     fun observeSummaries(): Flow<List<WorkoutSummary>>
+
+    @Query(
+        """
+        SELECT w.id AS workoutId,
+               w.performedAt AS performedAt,
+               e.targetedMuscles AS targetedMuscles
+        FROM workouts w
+        INNER JOIN workout_exercises we ON we.workoutId = w.id
+        INNER JOIN exercises e ON e.id = we.exerciseId
+        """,
+    )
+    fun observeWorkoutMuscles(): Flow<List<WorkoutMuscleRow>>
 
     @Query("SELECT * FROM workouts WHERE id = :id")
     suspend fun getById(id: Long): WorkoutEntity?
@@ -136,6 +149,7 @@ interface WorkoutDao {
         SELECT e.id AS exerciseId,
                e.name AS exerciseName,
                e.exerciseType AS exerciseType,
+               e.machine AS machine,
                w.id AS workoutId,
                w.performedAt AS performedAt,
                w.bodyWeightKg AS bodyWeightKg,
@@ -158,6 +172,7 @@ interface WorkoutDao {
         SELECT e.id AS exerciseId,
                e.name AS exerciseName,
                e.exerciseType AS exerciseType,
+               e.machine AS machine,
                w.id AS workoutId,
                w.performedAt AS performedAt,
                w.bodyWeightKg AS bodyWeightKg,

@@ -26,11 +26,24 @@ class RestTimerController(
 
     private var tickJob: Job? = null
     private var exerciseName: String = "exercise"
+    private var workoutId: Long = 0L
+    private var workoutExerciseId: Long = 0L
+    private var endsAtElapsedRealtime: Long = 0L
 
-    fun configureDefault(seconds: Int?, name: String) {
+    fun configureDefault(
+        seconds: Int?,
+        name: String,
+        workoutId: Long,
+        workoutExerciseId: Long,
+    ) {
         exerciseName = name
+        this.workoutId = workoutId
+        this.workoutExerciseId = workoutExerciseId
         if (!_running.value) {
             _remainingSeconds.value = (seconds ?: 90).coerceAtLeast(0)
+        } else {
+            // Keep UI in sync if screen remounts while still counting down.
+            _remainingSeconds.value = remainingFromEnd()
         }
     }
 
@@ -48,19 +61,35 @@ class RestTimerController(
 
     fun start() {
         if (_running.value || _remainingSeconds.value <= 0) return
+        val seconds = _remainingSeconds.value
+        endsAtElapsedRealtime = SystemClock.elapsedRealtime() + seconds * 1_000L
         _running.value = true
-        scheduleAlarm(_remainingSeconds.value)
+        scheduleAlarm(seconds)
+        RestTimerNotifications.showRestRunning(
+            context = context,
+            exerciseName = exerciseName,
+            endsAtElapsedRealtime = endsAtElapsedRealtime,
+            workoutId = workoutId,
+            workoutExerciseId = workoutExerciseId,
+        )
         tickJob?.cancel()
         tickJob = scope.launch {
-            while (isActive && _remainingSeconds.value > 0) {
-                delay(1_000)
-                _remainingSeconds.value = _remainingSeconds.value - 1
+            while (isActive) {
+                val remaining = remainingFromEnd()
+                _remainingSeconds.value = remaining
+                if (remaining <= 0) break
+                delay(250)
             }
-            if (_remainingSeconds.value <= 0) {
+            if (_remainingSeconds.value <= 0 && _running.value) {
                 _running.value = false
                 cancelAlarm()
                 RestTimerNotifications.vibrateFiveSeconds(context)
-                RestTimerNotifications.showRestComplete(context, exerciseName)
+                RestTimerNotifications.showRestComplete(
+                    context = context,
+                    exerciseName = exerciseName,
+                    workoutId = workoutId,
+                    workoutExerciseId = workoutExerciseId,
+                )
             }
         }
     }
@@ -68,8 +97,19 @@ class RestTimerController(
     fun stop() {
         tickJob?.cancel()
         tickJob = null
+        val wasRunning = _running.value
         _running.value = false
+        endsAtElapsedRealtime = 0L
         cancelAlarm()
+        if (wasRunning) {
+            RestTimerNotifications.cancelRestNotification(context)
+        }
+    }
+
+    private fun remainingFromEnd(): Int {
+        if (endsAtElapsedRealtime <= 0L) return _remainingSeconds.value
+        val msLeft = endsAtElapsedRealtime - SystemClock.elapsedRealtime()
+        return ((msLeft + 999L) / 1_000L).toInt().coerceAtLeast(0)
     }
 
     private fun scheduleAlarm(seconds: Int) {
@@ -77,6 +117,8 @@ class RestTimerController(
         val intent = Intent(context, RestTimerReceiver::class.java).apply {
             action = RestTimerReceiver.ACTION_REST_COMPLETE
             putExtra(RestTimerReceiver.EXTRA_EXERCISE_NAME, exerciseName)
+            putExtra(RestTimerReceiver.EXTRA_WORKOUT_ID, workoutId)
+            putExtra(RestTimerReceiver.EXTRA_WORKOUT_EXERCISE_ID, workoutExerciseId)
         }
         val pending = PendingIntent.getBroadcast(
             context,

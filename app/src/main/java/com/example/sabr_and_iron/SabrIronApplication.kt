@@ -8,9 +8,19 @@ import com.example.sabr_and_iron.data.repository.ExerciseRepository
 import com.example.sabr_and_iron.data.repository.RecordsRepository
 import com.example.sabr_and_iron.data.repository.RoutineRepository
 import com.example.sabr_and_iron.data.repository.WorkoutRepository
+import com.example.sabr_and_iron.timer.RestTimerController
 import com.example.sabr_and_iron.timer.RestTimerNotifications
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.SupervisorJob
 
 class SabrIronApplication : Application() {
+    private val applicationScope = CoroutineScope(SupervisorJob() + Dispatchers.Default)
+
+    val restTimer: RestTimerController by lazy {
+        RestTimerController(applicationContext, applicationScope)
+    }
+
     val database: SabrIronDatabase by lazy { SabrIronDatabase.getInstance(this) }
 
     val exerciseRepository: ExerciseRepository by lazy {

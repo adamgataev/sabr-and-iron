@@ -7,8 +7,10 @@ import com.example.sabr_and_iron.data.local.entity.WorkoutEntity
 import com.example.sabr_and_iron.data.local.entity.WorkoutExerciseEntity
 import com.example.sabr_and_iron.data.local.model.ExerciseHistoryEntry
 import com.example.sabr_and_iron.data.local.model.SetDifficulty
+import com.example.sabr_and_iron.data.local.model.MuscleGroup
 import com.example.sabr_and_iron.data.local.model.WorkoutDetail
 import com.example.sabr_and_iron.data.local.model.WorkoutExerciseWithSets
+import com.example.sabr_and_iron.data.local.model.WorkoutMuscleRow
 import com.example.sabr_and_iron.data.local.model.WorkoutSummary
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.flow.Flow
@@ -22,6 +24,21 @@ class WorkoutRepository(
     private val exerciseDao: ExerciseDao,
 ) {
     fun observeSummaries(): Flow<List<WorkoutSummary>> = workoutDao.observeSummaries()
+
+    fun observeWorkoutMuscles(): Flow<List<WorkoutMuscleRow>> = workoutDao.observeWorkoutMuscles()
+
+    /** Unique muscles per calendar day (day-start millis → ordered muscle list). */
+    fun observeMusclesByDay(dayStartOf: (Long) -> Long): Flow<Map<Long, List<MuscleGroup>>> =
+        observeWorkoutMuscles().map { rows ->
+            rows
+                .groupBy { dayStartOf(it.performedAt) }
+                .mapValues { (_, dayRows) ->
+                    dayRows
+                        .flatMap { it.targetedMuscles }
+                        .distinct()
+                        .sortedBy { it.ordinal }
+                }
+        }
 
     @OptIn(ExperimentalCoroutinesApi::class)
     fun observeDetail(workoutId: Long): Flow<WorkoutDetail?> =
