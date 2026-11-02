@@ -45,7 +45,10 @@ import com.example.sabr_and_iron.data.local.entity.ExerciseEntity
 import com.example.sabr_and_iron.ui.components.FloatingIslandTopClearance
 import com.example.sabr_and_iron.ui.components.LocalAppSnackbar
 import com.example.sabr_and_iron.ui.components.ReorderableExerciseRow
+import com.example.sabr_and_iron.ui.components.SelectExercisePickerRow
+import com.example.sabr_and_iron.ui.components.SelectRoutinePickerRow
 import com.example.sabr_and_iron.ui.util.formatDateTime
+import com.example.sabr_and_iron.ui.util.parseFlexibleDouble
 import kotlinx.coroutines.launch
 import sh.calvin.reorderable.ReorderableItem
 import sh.calvin.reorderable.rememberReorderableLazyListState
@@ -149,6 +152,7 @@ fun WorkoutFormScreen(
                     }
                     ReorderableExerciseRow(
                         name = exercise.name,
+                        machine = exercise.machine,
                         isDragging = isDragging,
                         dimmed = draggingId != null && !isDragging,
                         onRemove = { selected.remove(exercise) },
@@ -167,7 +171,7 @@ fun WorkoutFormScreen(
                     viewModel.createWorkout(
                         name = name.trim(),
                         performedAt = performedAt,
-                        bodyWeightKg = bodyWeight.toDoubleOrNull(),
+                        bodyWeightKg = parseFlexibleDouble(bodyWeight),
                         exerciseIds = selected.map { it.id },
                         onDone = onSaved,
                     )
@@ -195,13 +199,14 @@ fun WorkoutFormScreen(
                 } else {
                     LazyColumn {
                         items(availableExercises, key = { it.id }) { exercise ->
-                            TextButton(
+                            SelectExercisePickerRow(
+                                name = exercise.name,
+                                machine = exercise.machine,
                                 onClick = {
                                     selected.add(exercise)
                                     showExercisePicker = false
                                 },
-                                modifier = Modifier.fillMaxWidth(),
-                            ) { Text(exercise.name) }
+                            )
                         }
                     }
                 }
@@ -219,7 +224,9 @@ fun WorkoutFormScreen(
             text = {
                 LazyColumn {
                     items(routines, key = { it.id }) { routine ->
-                        TextButton(
+                        SelectRoutinePickerRow(
+                            name = routine.name,
+                            inspiredBy = routine.inspiredBy,
                             onClick = {
                                 scope.launch {
                                     val ids = viewModel.routineExerciseIds(routine.id)
@@ -233,8 +240,7 @@ fun WorkoutFormScreen(
                                     viewModel.showRoutineDuplicates(skipped.map { it.name })
                                 }
                             },
-                            modifier = Modifier.fillMaxWidth(),
-                        ) { Text(routine.name) }
+                        )
                     }
                 }
             },

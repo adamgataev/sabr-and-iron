@@ -66,6 +66,7 @@ class WorkoutRepository(
                             WorkoutExerciseWithSets(
                                 workoutExercise = we,
                                 exerciseName = exercise?.name ?: "Unknown",
+                                machine = exercise?.machine?.takeIf { it.isNotBlank() },
                                 defaultRestSeconds = exercise?.defaultRestSeconds,
                                 sets = sets.sortedBy { it.position },
                             )

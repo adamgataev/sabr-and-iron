@@ -9,7 +9,8 @@ object Routes {
     const val RoutineNew = "routine/new"
     const val RoutineEdit = "routine/{routineId}"
     const val ExerciseNew = "exercise/new"
-    const val ExerciseEdit = "exercise/{exerciseId}"
+    const val ExerciseDetail = "exercise/{exerciseId}"
+    const val ExerciseEdit = "exercise/{exerciseId}/edit"
     const val RecordDetail = "records/{exerciseId}"
     const val Settings = "settings"
 
@@ -21,6 +22,7 @@ object Routes {
         "sabrandiron://workout/$workoutId/exercise/$workoutExerciseId"
 
     fun routineEdit(routineId: Long) = "routine/$routineId"
-    fun exerciseEdit(exerciseId: Long) = "exercise/$exerciseId"
+    fun exerciseDetail(exerciseId: Long) = "exercise/$exerciseId"
+    fun exerciseEdit(exerciseId: Long) = "exercise/$exerciseId/edit"
     fun recordDetail(exerciseId: Long) = "records/$exerciseId"
 }

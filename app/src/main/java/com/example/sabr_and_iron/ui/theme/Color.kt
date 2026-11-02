@@ -33,6 +33,11 @@ val ErrorVibrant = Color(0xFFFF1744)
 /** Chart secondary series (body weight) — restrained cool grey-blue. */
 val ChartSecondary = Color(0xFF7DD3FC)
 
+/** Set difficulty icon accents. */
+val DifficultyIdeal = Color(0xFFFACC15)
+val DifficultyHard = Color(0xFFF97316)
+val DifficultyPain = Color(0xFFEF4444)
+
 /** @deprecated Prefer AccentBlue / Charcoal* tokens. Kept for any lingering refs. */
 val IronAmber = AccentBlue
 val SteelBlue = ChartSecondary

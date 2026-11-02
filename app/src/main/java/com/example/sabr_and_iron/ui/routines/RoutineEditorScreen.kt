@@ -36,6 +36,7 @@ import com.example.sabr_and_iron.data.local.entity.ExerciseEntity
 import com.example.sabr_and_iron.ui.components.ConfirmDeleteDialog
 import com.example.sabr_and_iron.ui.components.FloatingIslandTopClearance
 import com.example.sabr_and_iron.ui.components.ReorderableExerciseRow
+import com.example.sabr_and_iron.ui.components.SelectExercisePickerRow
 import com.example.sabr_and_iron.ui.theme.ErrorVibrant
 import kotlinx.coroutines.delay
 import sh.calvin.reorderable.ReorderableItem
@@ -167,6 +168,7 @@ fun RoutineEditorScreen(
                     }
                     ReorderableExerciseRow(
                         name = exercise.name,
+                        machine = exercise.machine,
                         isDragging = isDragging,
                         dimmed = draggingId != null && !isDragging,
                         onRemove = { selected.remove(exercise) },
@@ -231,15 +233,14 @@ fun RoutineEditorScreen(
                 } else {
                     LazyColumn {
                         items(availableExercises, key = { it.id }) { exercise ->
-                            TextButton(
+                            SelectExercisePickerRow(
+                                name = exercise.name,
+                                machine = exercise.machine,
                                 onClick = {
                                     selected.add(exercise)
                                     showPicker = false
                                 },
-                                modifier = Modifier.fillMaxWidth(),
-                            ) {
-                                Text(exercise.name)
-                            }
+                            )
                         }
                     }
                 }

@@ -7,6 +7,7 @@ import com.example.sabr_and_iron.data.local.entity.WorkoutExerciseEntity
 data class WorkoutExerciseWithSets(
     val workoutExercise: WorkoutExerciseEntity,
     val exerciseName: String,
+    val machine: String? = null,
     val defaultRestSeconds: Int?,
     val sets: List<SetEntity>,
 )

@@ -6,6 +6,8 @@ import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.ExperimentalLayoutApi
+import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
@@ -65,12 +67,14 @@ import com.example.sabr_and_iron.data.local.model.SetDifficulty
 import com.example.sabr_and_iron.data.local.model.effectiveLoadKg
 import com.example.sabr_and_iron.ui.components.AppCard
 import com.example.sabr_and_iron.ui.components.ConfirmDeleteDialog
+import com.example.sabr_and_iron.ui.theme.color
 import com.example.sabr_and_iron.ui.util.formatDate
 import com.example.sabr_and_iron.ui.util.formatDistanceKm
 import com.example.sabr_and_iron.ui.util.formatDuration
 import com.example.sabr_and_iron.ui.util.formatKg
 import com.example.sabr_and_iron.ui.util.formatPace
 import com.example.sabr_and_iron.ui.util.formatTimer
+import com.example.sabr_and_iron.ui.util.parseFlexibleDouble
 import kotlinx.coroutines.flow.flowOf
 import kotlinx.coroutines.launch
 
@@ -80,6 +84,7 @@ private data class HistoryWorkoutGroup(
     val entries: List<ExerciseHistoryEntry>,
 )
 
+@OptIn(ExperimentalLayoutApi::class)
 @Composable
 fun ActiveExerciseScreen(
     workoutExerciseId: Long,
@@ -304,123 +309,174 @@ fun ActiveExerciseScreen(
             modifier = Modifier.weight(1f),
         ) { page ->
             if (page == 0) {
+                val machineLabel = exercise?.machine?.takeIf { it.isNotBlank() }
+                val muscles = exercise?.targetedMuscles.orEmpty()
+                val effectivePreview = parseFlexibleDouble(addedWeight)?.let { weight ->
+                    when (exerciseType) {
+                        ExerciseType.Regular,
+                        ExerciseType.WeightedBodyweight,
+                        ExerciseType.Assisted,
+                        -> effectiveLoadKg(
+                            type = exerciseType,
+                            startingResistanceKg = workoutExercise?.startingResistanceKg,
+                            addedWeightKg = weight,
+                            bodyWeightKg = bodyWeight,
+                        )
+                        else -> null
+                    }
+                }
                 Column(
                     modifier = Modifier
                         .fillMaxSize()
                         .imePadding()
-                        .verticalScroll(rememberScrollState())
-                        .padding(start = 16.dp, end = 16.dp, top = 16.dp, bottom = 40.dp),
-                    verticalArrangement = Arrangement.spacedBy(12.dp),
+                        .padding(horizontal = 16.dp)
+                        .padding(top = 16.dp),
                 ) {
-                    val machineLabel = exercise?.machine?.takeIf { it.isNotBlank() }
-                    Column {
-                        Text(exerciseName, style = MaterialTheme.typography.headlineSmall)
-                        if (machineLabel != null) {
-                            Text(
-                                machineLabel,
-                                style = MaterialTheme.typography.bodyMedium,
-                                color = MaterialTheme.colorScheme.onSurfaceVariant,
-                                modifier = Modifier.padding(top = 6.dp),
-                            )
-                        }
-                        Text(
-                            exerciseType.label,
-                            style = MaterialTheme.typography.labelLarge,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant,
-                            modifier = Modifier.padding(top = if (machineLabel != null) 4.dp else 6.dp),
-                        )
-                    }
-                    MetaLine(
-                        bodyWeight = bodyWeight,
-                        needsBodyWeight = needsBodyWeight,
-                        startingResistanceKg = workoutExercise?.startingResistanceKg
-                            ?.takeIf { exerciseType.usesStartingResistance },
-                    )
-                    if (missingBodyWeight) {
-                        Text(
-                            "Set body weight on the workout to log this exercise.",
-                            color = MaterialTheme.colorScheme.error,
-                            style = MaterialTheme.typography.bodyMedium,
-                        )
-                    }
-
-                    Text("Sets", style = MaterialTheme.typography.titleMedium)
-                    if (sets.isEmpty()) {
-                        Text(
-                            "No sets logged yet.",
-                            color = MaterialTheme.colorScheme.onSurfaceVariant,
-                            style = MaterialTheme.typography.bodyMedium,
-                        )
-                    } else {
-                        Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                            sets.forEach { set ->
-                                SetCard(
-                                    set = set,
-                                    type = exerciseType,
-                                    startingResistanceKg = workoutExercise?.startingResistanceKg,
-                                    bodyWeightKg = bodyWeight,
-                                    onEdit = { setToEdit = set },
-                                    onDelete = { setToDelete = set },
+                    Column(
+                        modifier = Modifier
+                            .weight(1f)
+                            .fillMaxWidth()
+                            .verticalScroll(rememberScrollState())
+                            .padding(bottom = 12.dp),
+                        verticalArrangement = Arrangement.spacedBy(12.dp),
+                    ) {
+                        Column {
+                            Text(exerciseName, style = MaterialTheme.typography.headlineSmall)
+                            if (machineLabel != null) {
+                                Text(
+                                    machineLabel,
+                                    style = MaterialTheme.typography.bodyMedium,
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                    modifier = Modifier.padding(top = 6.dp),
                                 )
                             }
+                            if (muscles.isNotEmpty()) {
+                                FlowRow(
+                                    horizontalArrangement = Arrangement.spacedBy(8.dp),
+                                    modifier = Modifier.padding(top = 6.dp),
+                                ) {
+                                    muscles.forEach { muscle ->
+                                        Text(
+                                            text = muscle.name,
+                                            style = MaterialTheme.typography.bodyMedium,
+                                            color = muscle.color,
+                                        )
+                                    }
+                                }
+                            }
+                            Text(
+                                exerciseType.label,
+                                style = MaterialTheme.typography.labelLarge,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                modifier = Modifier.padding(top = 4.dp),
+                            )
                         }
-                    }
-
-                    Text("Rest timer", style = MaterialTheme.typography.titleMedium)
-                    Row(
-                        modifier = Modifier.fillMaxWidth(),
-                        horizontalArrangement = Arrangement.spacedBy(8.dp),
-                        verticalAlignment = Alignment.CenterVertically,
-                    ) {
-                        Text(
-                            formatTimer(remaining),
-                            style = MaterialTheme.typography.headlineMedium,
-                            color = MaterialTheme.colorScheme.primary,
-                            modifier = Modifier.weight(1f),
+                        MetaLine(
+                            bodyWeight = bodyWeight,
+                            needsBodyWeight = needsBodyWeight,
+                            startingResistanceKg = workoutExercise?.startingResistanceKg
+                                ?.takeIf { exerciseType.usesStartingResistance },
                         )
-                        OutlinedButton(onClick = { timer.adjust(-15) }, enabled = !running) {
-                            Text("-15s")
+                        if (missingBodyWeight) {
+                            Text(
+                                "Set body weight on the workout to log this exercise.",
+                                color = MaterialTheme.colorScheme.error,
+                                style = MaterialTheme.typography.bodyMedium,
+                            )
                         }
-                        OutlinedButton(onClick = { timer.adjust(15) }, enabled = !running) {
-                            Text("+15s")
-                        }
-                        if (running) {
-                            Button(onClick = { timer.stop() }) { Text("Stop") }
+
+                        Text("Sets", style = MaterialTheme.typography.titleMedium)
+                        if (sets.isEmpty()) {
+                            Text(
+                                "No sets logged yet.",
+                                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                style = MaterialTheme.typography.bodyMedium,
+                            )
                         } else {
-                            Button(onClick = { timer.start() }, enabled = remaining > 0) {
-                                Text("Start")
+                            Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                                sets.forEach { set ->
+                                    SetCard(
+                                        set = set,
+                                        type = exerciseType,
+                                        startingResistanceKg = workoutExercise?.startingResistanceKg,
+                                        bodyWeightKg = bodyWeight,
+                                        onEdit = { setToEdit = set },
+                                        onDelete = { setToDelete = set },
+                                    )
+                                }
                             }
                         }
-                    }
 
-                    Text("Add set", style = MaterialTheme.typography.titleMedium)
-                    SetInputFields(
-                        exerciseType = exerciseType,
-                        addedWeight = addedWeight,
-                        onAddedWeightChange = { addedWeight = it },
-                        reps = reps,
-                        onRepsChange = { reps = it },
-                        durationMinutes = durationMinutes,
-                        onDurationMinutesChange = { durationMinutes = it },
-                        durationSeconds = durationSeconds,
-                        onDurationSecondsChange = { durationSeconds = it },
-                        distanceKm = distanceKm,
-                        onDistanceKmChange = { distanceKm = it },
-                        startingResistanceKg = workoutExercise?.startingResistanceKg,
-                        bodyWeightKg = bodyWeight,
-                        inlineDifficulty = true,
-                        difficultyContent = {
-                            DifficultyIconButton(
-                                difficulty = difficulty,
-                                onClick = { showDifficultyPicker = true },
+                        Text("Rest timer", style = MaterialTheme.typography.titleMedium)
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.spacedBy(8.dp),
+                            verticalAlignment = Alignment.CenterVertically,
+                        ) {
+                            Text(
+                                formatTimer(remaining),
+                                style = MaterialTheme.typography.headlineMedium,
+                                color = MaterialTheme.colorScheme.primary,
+                                modifier = Modifier.weight(1f),
                             )
-                        },
-                    )
-                    Button(
-                        onClick = { submitSet() },
-                        modifier = Modifier.fillMaxWidth(),
-                        enabled = canSubmit(),
-                    ) { Text("Add set") }
+                            OutlinedButton(onClick = { timer.adjust(-15) }, enabled = !running) {
+                                Text("-15s")
+                            }
+                            OutlinedButton(onClick = { timer.adjust(15) }, enabled = !running) {
+                                Text("+15s")
+                            }
+                            if (running) {
+                                Button(onClick = { timer.stop() }) { Text("Stop") }
+                            } else {
+                                Button(onClick = { timer.start() }, enabled = remaining > 0) {
+                                    Text("Start")
+                                }
+                            }
+                        }
+
+                        Text("Add set", style = MaterialTheme.typography.titleMedium)
+                        SetInputFields(
+                            exerciseType = exerciseType,
+                            addedWeight = addedWeight,
+                            onAddedWeightChange = { addedWeight = it },
+                            reps = reps,
+                            onRepsChange = { reps = it },
+                            durationMinutes = durationMinutes,
+                            onDurationMinutesChange = { durationMinutes = it },
+                            durationSeconds = durationSeconds,
+                            onDurationSecondsChange = { durationSeconds = it },
+                            distanceKm = distanceKm,
+                            onDistanceKmChange = { distanceKm = it },
+                            startingResistanceKg = workoutExercise?.startingResistanceKg,
+                            bodyWeightKg = bodyWeight,
+                            inlineDifficulty = true,
+                            showEffectiveLoad = false,
+                            difficultyContent = {
+                                DifficultyIconButton(
+                                    difficulty = difficulty,
+                                    onClick = { showDifficultyPicker = true },
+                                )
+                            },
+                        )
+                    }
+                    Column(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(bottom = 24.dp),
+                        verticalArrangement = Arrangement.spacedBy(8.dp),
+                    ) {
+                        if (effectivePreview != null) {
+                            Text(
+                                "Effective load: ${formatKg(effectivePreview)} kg",
+                                color = MaterialTheme.colorScheme.primary,
+                            )
+                        }
+                        Button(
+                            onClick = { submitSet() },
+                            modifier = Modifier.fillMaxWidth(),
+                            enabled = canSubmit(),
+                        ) { Text("Add set") }
+                    }
                 }
             } else {
                 LazyColumn(
@@ -541,11 +597,7 @@ private fun DifficultyPickerDialog(
                             Icon(
                                 imageVector = option.icon,
                                 contentDescription = null,
-                                tint = if (isSelected) {
-                                    MaterialTheme.colorScheme.primary
-                                } else {
-                                    MaterialTheme.colorScheme.onSurfaceVariant
-                                },
+                                tint = option.color,
                             )
                             Text(
                                 option.label,
@@ -570,7 +622,7 @@ private fun MetaLine(
         if (bodyWeight != null) {
             Text(
                 "Body weight: ${formatKg(bodyWeight)} kg",
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                color = MaterialTheme.colorScheme.secondary,
                 style = MaterialTheme.typography.bodyMedium,
             )
         } else {
@@ -637,7 +689,7 @@ private fun SetCard(
             Icon(
                 imageVector = set.difficulty.icon,
                 contentDescription = set.difficulty.label,
-                tint = MaterialTheme.colorScheme.primary,
+                tint = set.difficulty.color,
                 modifier = Modifier.align(Alignment.Center),
             )
             Row(modifier = Modifier.align(Alignment.CenterEnd)) {
@@ -854,7 +906,7 @@ private fun HistoryWorkoutCard(group: HistoryWorkoutGroup) {
                     Icon(
                         imageVector = entry.difficulty.icon,
                         contentDescription = entry.difficulty.label,
-                        tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                        tint = entry.difficulty.color,
                         modifier = Modifier.size(20.dp),
                     )
                 }
@@ -881,7 +933,7 @@ private fun DifficultyIconButton(
         Icon(
             imageVector = difficulty.icon,
             contentDescription = difficulty.label,
-            tint = MaterialTheme.colorScheme.primary,
+            tint = difficulty.color,
         )
     }
 }
@@ -903,6 +955,7 @@ private fun SetInputFields(
     bodyWeightKg: Double?,
     inlineDifficulty: Boolean,
     difficultyContent: @Composable () -> Unit,
+    showEffectiveLoad: Boolean = true,
 ) {
     when (exerciseType) {
         ExerciseType.Regular,
@@ -944,7 +997,7 @@ private fun SetInputFields(
                     difficultyContent()
                 }
             }
-            val preview = addedWeight.toDoubleOrNull()?.let { weight ->
+            val preview = parseFlexibleDouble(addedWeight)?.let { weight ->
                 effectiveLoadKg(
                     type = exerciseType,
                     startingResistanceKg = startingResistanceKg,
@@ -953,7 +1006,7 @@ private fun SetInputFields(
                 )
             }
             if (inlineDifficulty) {
-                if (preview != null) {
+                if (showEffectiveLoad && preview != null) {
                     Text(
                         "Effective load: ${formatKg(preview)} kg",
                         color = MaterialTheme.colorScheme.primary,
@@ -968,7 +1021,7 @@ private fun SetInputFields(
                     verticalAlignment = Alignment.CenterVertically,
                     horizontalArrangement = Arrangement.SpaceBetween,
                 ) {
-                    if (preview != null) {
+                    if (showEffectiveLoad && preview != null) {
                         Text(
                             "Effective load: ${formatKg(preview)} kg",
                             color = MaterialTheme.colorScheme.primary,

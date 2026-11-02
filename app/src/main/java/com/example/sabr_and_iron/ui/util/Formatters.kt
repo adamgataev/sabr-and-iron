@@ -7,6 +7,14 @@ import java.util.Locale
 fun formatKg(value: Double): String =
     if (value % 1.0 == 0.0) value.toInt().toString() else String.format(Locale.US, "%.1f", value)
 
+/** Parses doubles accepting either `.` or `,` as decimal separator. */
+fun parseFlexibleDouble(raw: String): Double? {
+    val trimmed = raw.trim()
+    if (trimmed.isEmpty()) return null
+    trimmed.toDoubleOrNull()?.let { return it }
+    return trimmed.replace(',', '.').toDoubleOrNull()
+}
+
 fun formatDateTime(epochMillis: Long): String =
     SimpleDateFormat("EEE, d MMM yyyy · HH:mm", Locale.getDefault()).format(Date(epochMillis))
 

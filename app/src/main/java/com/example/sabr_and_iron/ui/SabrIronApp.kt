@@ -58,6 +58,7 @@ import androidx.navigation.navDeepLink
 import com.example.sabr_and_iron.ui.components.AppCardShape
 import com.example.sabr_and_iron.ui.components.LocalAppSnackbar
 import com.example.sabr_and_iron.ui.components.TabBottomChrome
+import com.example.sabr_and_iron.ui.exercises.ExerciseDetailScreen
 import com.example.sabr_and_iron.ui.exercises.ExerciseEditorScreen
 import com.example.sabr_and_iron.ui.exercises.ExercisesScreen
 import com.example.sabr_and_iron.ui.exercises.ExercisesViewModel
@@ -108,8 +109,11 @@ fun SabrIronApp() {
     val isWorkoutDetail = currentRoute?.startsWith("workout/") == true &&
         currentRoute?.contains("/exercise/") != true &&
         currentRoute != Routes.WorkoutNew
-    val isExerciseEdit = currentRoute?.startsWith("exercise/") == true &&
-        currentRoute != Routes.ExerciseNew
+    val isExerciseDetail = currentRoute?.startsWith("exercise/") == true &&
+        currentRoute != Routes.ExerciseNew &&
+        currentRoute?.endsWith("/edit") != true
+    val isExerciseEdit = currentRoute?.endsWith("/edit") == true &&
+        currentRoute?.startsWith("exercise/") == true
     val isRoutineEdit = currentRoute?.startsWith("routine/") == true &&
         currentRoute != Routes.RoutineNew
 
@@ -127,8 +131,8 @@ fun SabrIronApp() {
             workoutDeleteTick = 0
         }
     }
-    LaunchedEffect(isExerciseEdit) {
-        if (!isExerciseEdit) exerciseDeleteTick = 0
+    LaunchedEffect(isExerciseDetail, isExerciseEdit) {
+        if (!isExerciseDetail && !isExerciseEdit) exerciseDeleteTick = 0
     }
     LaunchedEffect(isRoutineEdit) {
         if (!isRoutineEdit) routineDeleteTick = 0
@@ -142,7 +146,8 @@ fun SabrIronApp() {
         currentRoute == Routes.RoutineNew -> "New Routine"
         currentRoute?.startsWith("routine/") == true -> "Edit Routine"
         currentRoute == Routes.ExerciseNew -> "New Exercise"
-        currentRoute?.startsWith("exercise/") == true -> "Edit Exercise"
+        isExerciseEdit -> "Edit Exercise"
+        isExerciseDetail -> "Exercise"
         currentRoute?.startsWith("records/") == true -> "Record"
         currentRoute == Routes.Settings -> "Settings"
         else -> selectedDestination.title
@@ -205,6 +210,21 @@ fun SabrIronApp() {
                                 Icons.Filled.Settings,
                                 contentDescription = "Settings",
                             )
+                        }
+                    }
+                    if (isExerciseDetail) {
+                        val detailId = navBackStackEntry?.arguments?.getLong("exerciseId")
+                        IconButton(
+                            onClick = {
+                                if (detailId != null && detailId > 0L) {
+                                    navController.navigate(Routes.exerciseEdit(detailId))
+                                }
+                            },
+                        ) {
+                            Icon(Icons.Filled.Edit, contentDescription = "Edit exercise")
+                        }
+                        TextButton(onClick = { exerciseDeleteTick++ }) {
+                            Text("Delete exercise", color = MaterialTheme.colorScheme.error)
                         }
                     }
                     if (isExerciseEdit) {
@@ -370,7 +390,7 @@ fun SabrIronApp() {
             }
             composable(AppDestination.Exercises.route) {
                 ExercisesScreen(
-                    onOpenExercise = { id -> navController.navigate(Routes.exerciseEdit(id)) },
+                    onOpenExercise = { id -> navController.navigate(Routes.exerciseDetail(id)) },
                 )
             }
             composable(AppDestination.Routines.route) {
@@ -452,6 +472,17 @@ fun SabrIronApp() {
                     exerciseId = id,
                     deleteTick = exerciseDeleteTick,
                     onDone = { navController.popBackStack() },
+                )
+            }
+            composable(
+                route = Routes.ExerciseDetail,
+                arguments = listOf(navArgument("exerciseId") { type = NavType.LongType }),
+            ) { entry ->
+                val id = entry.arguments?.getLong("exerciseId") ?: return@composable
+                ExerciseDetailScreen(
+                    exerciseId = id,
+                    deleteTick = exerciseDeleteTick,
+                    onDeleted = { navController.popBackStack() },
                 )
             }
         }

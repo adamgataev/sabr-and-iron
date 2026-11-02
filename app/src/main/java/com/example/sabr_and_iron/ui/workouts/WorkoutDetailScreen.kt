@@ -37,8 +37,11 @@ import com.example.sabr_and_iron.ui.components.AppCard
 import com.example.sabr_and_iron.ui.components.ConfirmDeleteDialog
 import com.example.sabr_and_iron.ui.components.LocalAppSnackbar
 import com.example.sabr_and_iron.ui.components.ReorderableExerciseRow
+import com.example.sabr_and_iron.ui.components.SelectExercisePickerRow
+import com.example.sabr_and_iron.ui.components.SelectRoutinePickerRow
 import com.example.sabr_and_iron.ui.util.formatDateTime
 import com.example.sabr_and_iron.ui.util.formatKg
+import com.example.sabr_and_iron.ui.util.parseFlexibleDouble
 import kotlinx.coroutines.launch
 import sh.calvin.reorderable.ReorderableItem
 import sh.calvin.reorderable.rememberReorderableLazyListState
@@ -122,7 +125,7 @@ fun WorkoutDetailScreen(
             viewModel.updateMeta(
                 workout.copy(
                     name = name.trim().ifBlank { workout.name },
-                    bodyWeightKg = bodyWeight.toDoubleOrNull(),
+                    bodyWeightKg = parseFlexibleDouble(bodyWeight),
                 ),
             )
             viewModel.reorderWorkoutExercises(editOrder.map { it.workoutExercise })
@@ -211,6 +214,7 @@ fun WorkoutDetailScreen(
                             val canRemove = item.sets.isEmpty()
                             ReorderableExerciseRow(
                                 name = item.exerciseName,
+                                machine = item.machine,
                                 isDragging = isDragging,
                                 dimmed = draggingId != null && !isDragging,
                                 onRemove = {
@@ -238,10 +242,19 @@ fun WorkoutDetailScreen(
                     items(detail?.exercises.orEmpty(), key = { it.workoutExercise.id }) { item ->
                         AppCard(onClick = { onOpenExercise(item.workoutExercise.id) }) {
                             Text(item.exerciseName, style = MaterialTheme.typography.titleMedium)
+                            item.machine?.let { machine ->
+                                Text(
+                                    text = machine,
+                                    style = MaterialTheme.typography.bodySmall,
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                    modifier = Modifier.padding(top = 2.dp),
+                                )
+                            }
                             Text(
                                 text = "${item.sets.size} sets",
                                 style = MaterialTheme.typography.bodyMedium,
                                 color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                modifier = Modifier.padding(top = 2.dp),
                             )
                         }
                     }
@@ -290,14 +303,15 @@ fun WorkoutDetailScreen(
                 } else {
                     LazyColumn {
                         items(availableExercises, key = { it.id }) { exercise ->
-                            TextButton(
+                            SelectExercisePickerRow(
+                                name = exercise.name,
+                                machine = exercise.machine,
                                 onClick = {
                                     viewModel.addExercise(workoutId, exercise.id) {
                                         showExercisePicker = false
                                     }
                                 },
-                                modifier = Modifier.fillMaxWidth(),
-                            ) { Text(exercise.name) }
+                            )
                         }
                     }
                 }
@@ -315,14 +329,15 @@ fun WorkoutDetailScreen(
             text = {
                 LazyColumn {
                     items(routines, key = { it.id }) { routine ->
-                        TextButton(
+                        SelectRoutinePickerRow(
+                            name = routine.name,
+                            inspiredBy = routine.inspiredBy,
                             onClick = {
                                 viewModel.addRoutineExercises(workoutId, routine.id) {
                                     showRoutinePicker = false
                                 }
                             },
-                            modifier = Modifier.fillMaxWidth(),
-                        ) { Text(routine.name) }
+                        )
                     }
                 }
             },

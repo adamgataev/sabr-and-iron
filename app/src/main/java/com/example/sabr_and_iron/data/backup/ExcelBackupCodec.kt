@@ -1,182 +1,186 @@
 package com.example.sabr_and_iron.data.backup
 
-import org.apache.poi.ss.usermodel.Row
-import org.apache.poi.ss.usermodel.Sheet
-import org.apache.poi.xssf.usermodel.XSSFWorkbook
 import java.io.File
-import java.io.FileOutputStream
 import java.io.InputStream
 import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
 
 /**
- * Excel backup codec. Export still uses Apache POI; import uses [SimpleXlsxReader]
- * so import does not depend on POI class init on Android/R8.
+ * Excel backup codec using POI-free [SimpleXlsxReader] / [SimpleXlsxWriter]
+ * so import/export work under Android R8.
  */
 internal object ExcelBackupCodec {
     fun write(backup: AppBackup, file: File) {
         val exercisesById = backup.exercises.associateBy { it.id }
-        val workbook = XSSFWorkbook()
-
-        writeSheet(
-            workbook = workbook,
-            name = SHEET_EXERCISES,
-            headers = listOf(
-                "id", "name", "machine", "targetedMuscles", "exerciseType",
-                "startingResistanceKg", "defaultRestSeconds",
+        val sheets = listOf(
+            SimpleXlsxWriter.Sheet(
+                name = SHEET_EXERCISES,
+                rows = buildList {
+                    add(
+                        listOf(
+                            "id", "name", "machine", "targetedMuscles", "exerciseType",
+                            "startingResistanceKg", "defaultRestSeconds",
+                        ),
+                    )
+                    backup.exercises.forEach { item ->
+                        add(
+                            listOf(
+                                item.id,
+                                item.name,
+                                item.machine,
+                                item.targetedMuscles.joinToString(","),
+                                item.exerciseType,
+                                item.startingResistanceKg,
+                                item.defaultRestSeconds,
+                            ),
+                        )
+                    }
+                },
             ),
-        ) { sheet ->
-            backup.exercises.forEachIndexed { index, item ->
-                val row = sheet.createRow(index + 1)
-                row.setNumber(0, item.id.toDouble())
-                row.setText(1, item.name)
-                item.machine?.let { row.setText(2, it) }
-                row.setText(3, item.targetedMuscles.joinToString(","))
-                row.setText(4, item.exerciseType)
-                item.startingResistanceKg?.let { row.setNumber(5, it) }
-                item.defaultRestSeconds?.let { row.setNumber(6, it.toDouble()) }
-            }
-        }
-
-        writeSheet(
-            workbook = workbook,
-            name = SHEET_ROUTINES,
-            headers = listOf("id", "name", "inspiredBy"),
-        ) { sheet ->
-            backup.routines.forEachIndexed { index, item ->
-                val row = sheet.createRow(index + 1)
-                row.setNumber(0, item.id.toDouble())
-                row.setText(1, item.name)
-                item.inspiredBy?.let { row.setText(2, it) }
-            }
-        }
-
-        writeSheet(
-            workbook = workbook,
-            name = SHEET_ROUTINE_EXERCISES,
-            headers = listOf("id", "routineId", "exerciseId", "position"),
-        ) { sheet ->
-            backup.routineExercises.forEachIndexed { index, item ->
-                val row = sheet.createRow(index + 1)
-                row.setNumber(0, item.id.toDouble())
-                row.setNumber(1, item.routineId.toDouble())
-                row.setNumber(2, item.exerciseId.toDouble())
-                row.setNumber(3, item.position.toDouble())
-            }
-        }
-
-        writeSheet(
-            workbook = workbook,
-            name = SHEET_WORKOUTS,
-            headers = listOf("id", "name", "performedAt", "bodyWeightKg"),
-        ) { sheet ->
-            backup.workouts.forEachIndexed { index, item ->
-                val row = sheet.createRow(index + 1)
-                row.setNumber(0, item.id.toDouble())
-                row.setText(1, item.name)
-                row.setNumber(2, item.performedAt.toDouble())
-                item.bodyWeightKg?.let { row.setNumber(3, it) }
-            }
-        }
-
-        writeSheet(
-            workbook = workbook,
-            name = SHEET_WORKOUT_EXERCISES,
-            headers = listOf(
-                "id", "workoutId", "exerciseId", "position", "startingResistanceKg",
+            SimpleXlsxWriter.Sheet(
+                name = SHEET_ROUTINES,
+                rows = buildList {
+                    add(listOf("id", "name", "inspiredBy"))
+                    backup.routines.forEach { item ->
+                        add(listOf(item.id, item.name, item.inspiredBy))
+                    }
+                },
             ),
-        ) { sheet ->
-            backup.workoutExercises.forEachIndexed { index, item ->
-                val row = sheet.createRow(index + 1)
-                row.setNumber(0, item.id.toDouble())
-                row.setNumber(1, item.workoutId.toDouble())
-                row.setNumber(2, item.exerciseId.toDouble())
-                row.setNumber(3, item.position.toDouble())
-                item.startingResistanceKg?.let { row.setNumber(4, it) }
-            }
-        }
-
-        writeSheet(
-            workbook = workbook,
-            name = SHEET_SETS,
-            headers = listOf(
-                "id", "workoutExerciseId", "addedWeightKg", "reps", "difficulty",
-                "position", "durationSeconds", "distanceMeters",
+            SimpleXlsxWriter.Sheet(
+                name = SHEET_ROUTINE_EXERCISES,
+                rows = buildList {
+                    add(listOf("id", "routineId", "exerciseId", "position"))
+                    backup.routineExercises.forEach { item ->
+                        add(listOf(item.id, item.routineId, item.exerciseId, item.position))
+                    }
+                },
             ),
-        ) { sheet ->
-            backup.sets.forEachIndexed { index, item ->
-                val row = sheet.createRow(index + 1)
-                row.setNumber(0, item.id.toDouble())
-                row.setNumber(1, item.workoutExerciseId.toDouble())
-                row.setNumber(2, item.addedWeightKg)
-                row.setNumber(3, item.reps.toDouble())
-                row.setText(4, item.difficulty)
-                row.setNumber(5, item.position.toDouble())
-                item.durationSeconds?.let { row.setNumber(6, it.toDouble()) }
-                item.distanceMeters?.let { row.setNumber(7, it) }
-            }
-        }
-
-        writeSheet(
-            workbook = workbook,
-            name = SHEET_WORKOUTS_READABLE,
-            headers = listOf(
-                "workoutId", "workoutName", "performedAt", "bodyWeightKg",
-                "exercise", "set", "addedKg", "effectiveKg", "reps",
-                "durationSec", "distanceM", "difficulty",
+            SimpleXlsxWriter.Sheet(
+                name = SHEET_WORKOUTS,
+                rows = buildList {
+                    add(listOf("id", "name", "performedAt", "bodyWeightKg"))
+                    backup.workouts.forEach { item ->
+                        add(listOf(item.id, item.name, item.performedAt, item.bodyWeightKg))
+                    }
+                },
             ),
-        ) { sheet ->
-            var rowIndex = 1
-            backup.workouts.sortedByDescending { it.performedAt }.forEach { workout ->
-                val weList = backup.workoutExercises
-                    .filter { it.workoutId == workout.id }
-                    .sortedBy { it.position }
-                if (weList.isEmpty()) {
-                    val row = sheet.createRow(rowIndex++)
-                    row.setNumber(0, workout.id.toDouble())
-                    row.setText(1, workout.name)
-                    row.setText(2, formatDate(workout.performedAt))
-                    workout.bodyWeightKg?.let { row.setNumber(3, it) }
-                } else {
-                    weList.forEach { we ->
-                        val sets = backup.sets
-                            .filter { it.workoutExerciseId == we.id }
+            SimpleXlsxWriter.Sheet(
+                name = SHEET_WORKOUT_EXERCISES,
+                rows = buildList {
+                    add(
+                        listOf(
+                            "id", "workoutId", "exerciseId", "position", "startingResistanceKg",
+                        ),
+                    )
+                    backup.workoutExercises.forEach { item ->
+                        add(
+                            listOf(
+                                item.id,
+                                item.workoutId,
+                                item.exerciseId,
+                                item.position,
+                                item.startingResistanceKg,
+                            ),
+                        )
+                    }
+                },
+            ),
+            SimpleXlsxWriter.Sheet(
+                name = SHEET_SETS,
+                rows = buildList {
+                    add(
+                        listOf(
+                            "id", "workoutExerciseId", "addedWeightKg", "reps", "difficulty",
+                            "position", "durationSeconds", "distanceMeters",
+                        ),
+                    )
+                    backup.sets.forEach { item ->
+                        add(
+                            listOf(
+                                item.id,
+                                item.workoutExerciseId,
+                                item.addedWeightKg,
+                                item.reps,
+                                item.difficulty,
+                                item.position,
+                                item.durationSeconds,
+                                item.distanceMeters,
+                            ),
+                        )
+                    }
+                },
+            ),
+            SimpleXlsxWriter.Sheet(
+                name = SHEET_WORKOUTS_READABLE,
+                rows = buildList {
+                    add(
+                        listOf(
+                            "workoutId", "workoutName", "performedAt", "bodyWeightKg",
+                            "exercise", "set", "addedKg", "effectiveKg", "reps",
+                            "durationSec", "distanceM", "difficulty",
+                        ),
+                    )
+                    backup.workouts.sortedByDescending { it.performedAt }.forEach { workout ->
+                        val weList = backup.workoutExercises
+                            .filter { it.workoutId == workout.id }
                             .sortedBy { it.position }
-                        val exerciseName = exercisesById[we.exerciseId]?.name.orEmpty()
-                        if (sets.isEmpty()) {
-                            val row = sheet.createRow(rowIndex++)
-                            row.setNumber(0, workout.id.toDouble())
-                            row.setText(1, workout.name)
-                            row.setText(2, formatDate(workout.performedAt))
-                            workout.bodyWeightKg?.let { row.setNumber(3, it) }
-                            row.setText(4, exerciseName)
+                        if (weList.isEmpty()) {
+                            add(
+                                listOf(
+                                    workout.id,
+                                    workout.name,
+                                    formatDate(workout.performedAt),
+                                    workout.bodyWeightKg,
+                                    null, null, null, null, null, null, null, null,
+                                ),
+                            )
                         } else {
-                            sets.forEach { set ->
-                                val effective =
-                                    (we.startingResistanceKg ?: 0.0) + set.addedWeightKg
-                                val row = sheet.createRow(rowIndex++)
-                                row.setNumber(0, workout.id.toDouble())
-                                row.setText(1, workout.name)
-                                row.setText(2, formatDate(workout.performedAt))
-                                workout.bodyWeightKg?.let { row.setNumber(3, it) }
-                                row.setText(4, exerciseName)
-                                row.setNumber(5, (set.position + 1).toDouble())
-                                row.setNumber(6, set.addedWeightKg)
-                                row.setNumber(7, effective)
-                                row.setNumber(8, set.reps.toDouble())
-                                set.durationSeconds?.let { row.setNumber(9, it.toDouble()) }
-                                set.distanceMeters?.let { row.setNumber(10, it) }
-                                row.setText(11, set.difficulty)
+                            weList.forEach { we ->
+                                val sets = backup.sets
+                                    .filter { it.workoutExerciseId == we.id }
+                                    .sortedBy { it.position }
+                                val exerciseName = exercisesById[we.exerciseId]?.name.orEmpty()
+                                if (sets.isEmpty()) {
+                                    add(
+                                        listOf(
+                                            workout.id,
+                                            workout.name,
+                                            formatDate(workout.performedAt),
+                                            workout.bodyWeightKg,
+                                            exerciseName,
+                                            null, null, null, null, null, null, null,
+                                        ),
+                                    )
+                                } else {
+                                    sets.forEach { set ->
+                                        val effective =
+                                            (we.startingResistanceKg ?: 0.0) + set.addedWeightKg
+                                        add(
+                                            listOf(
+                                                workout.id,
+                                                workout.name,
+                                                formatDate(workout.performedAt),
+                                                workout.bodyWeightKg,
+                                                exerciseName,
+                                                set.position + 1,
+                                                set.addedWeightKg,
+                                                effective,
+                                                set.reps,
+                                                set.durationSeconds,
+                                                set.distanceMeters,
+                                                set.difficulty,
+                                            ),
+                                        )
+                                    }
+                                }
                             }
                         }
                     }
-                }
-            }
-        }
-
-        FileOutputStream(file).use { workbook.write(it) }
-        workbook.close()
+                },
+            ),
+        )
+        SimpleXlsxWriter.write(file, sheets)
     }
 
     fun read(inputStream: InputStream): AppBackup {
@@ -192,18 +196,6 @@ internal object ExcelBackupCodec {
                 sets = readSets(reader, SHEET_SETS),
             )
         }
-    }
-
-    private fun writeSheet(
-        workbook: XSSFWorkbook,
-        name: String,
-        headers: List<String>,
-        fill: (Sheet) -> Unit,
-    ) {
-        val sheet = workbook.createSheet(name)
-        val header = sheet.createRow(0)
-        headers.forEachIndexed { i, title -> header.setText(i, title) }
-        fill(sheet)
     }
 
     private fun readExercises(reader: SimpleXlsxReader, sheetName: String): List<ExerciseBackup> {
@@ -372,14 +364,6 @@ internal object ExcelBackupCodec {
 
     private fun Map<Int, String>.requireInt(index: Int, column: String): Int =
         intOrNull(index) ?: error("Missing integer in column \"$column\"")
-
-    private fun Row.setText(index: Int, value: String) {
-        createCell(index).setCellValue(value)
-    }
-
-    private fun Row.setNumber(index: Int, value: Double) {
-        createCell(index).setCellValue(value)
-    }
 
     private fun formatDate(epochMillis: Long): String =
         SimpleDateFormat("yyyy-MM-dd HH:mm", Locale.US).format(Date(epochMillis))

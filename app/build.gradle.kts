@@ -98,16 +98,6 @@ dependencies {
     implementation(libs.vico.core)
     implementation(libs.reorderable)
     implementation(libs.kotlinx.serialization.json)
-    implementation(libs.apache.poi)
-    implementation(libs.apache.poi.ooxml) {
-        exclude(group = "org.apache.xmlbeans", module = "xmlbeans")
-        exclude(group = "org.apache.commons", module = "commons-compress")
-        exclude(group = "com.github.virtuald", module = "curvesapi")
-        exclude(group = "org.apache.logging.log4j")
-    }
-    // Re-add commons-compress (needed) without the Android-hostile bits where possible
-    implementation("org.apache.commons:commons-compress:1.26.2")
-    implementation("org.apache.xmlbeans:xmlbeans:5.2.1")
     testImplementation(libs.junit)
     androidTestImplementation(platform(libs.androidx.compose.bom))
     androidTestImplementation(libs.androidx.compose.ui.test.junit4)

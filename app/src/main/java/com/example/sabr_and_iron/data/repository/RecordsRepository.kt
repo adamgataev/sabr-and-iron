@@ -60,6 +60,7 @@ class RecordsRepository(
             exerciseName = row.exerciseName,
             exerciseType = row.exerciseType,
             machine = row.machine,
+            targetedMuscles = row.targetedMuscles,
             performedAt = row.performedAt,
             effectiveWeightKg = best.first,
             reps = best.second,
@@ -79,6 +80,7 @@ class RecordsRepository(
             exerciseName = row.exerciseName,
             exerciseType = row.exerciseType,
             machine = row.machine,
+            targetedMuscles = row.targetedMuscles,
             performedAt = row.performedAt,
             durationSeconds = best.first,
         )
@@ -98,6 +100,7 @@ class RecordsRepository(
             exerciseName = row.exerciseName,
             exerciseType = row.exerciseType,
             machine = row.machine,
+            targetedMuscles = row.targetedMuscles,
             performedAt = row.performedAt,
             distanceMeters = best.first,
             durationSeconds = row.durationSeconds,

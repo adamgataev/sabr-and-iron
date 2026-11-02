@@ -3,6 +3,7 @@ package com.example.sabr_and_iron.ui.components
 import androidx.compose.animation.core.animateDpAsState
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.size
@@ -30,6 +31,7 @@ fun ReorderableCollectionItemScope.ReorderableExerciseRow(
     dimmed: Boolean,
     onRemove: (() -> Unit)?,
     removeEnabled: Boolean = true,
+    machine: String? = null,
     modifier: Modifier = Modifier,
 ) {
     val elevation by animateDpAsState(
@@ -78,12 +80,21 @@ fun ReorderableCollectionItemScope.ReorderableExerciseRow(
                     .size(40.dp)
                     .draggableHandle(),
             )
-            Text(
-                text = name,
-                style = MaterialTheme.typography.titleMedium,
-                color = MaterialTheme.colorScheme.onSurface,
-                modifier = Modifier.weight(1f),
-            )
+            Column(modifier = Modifier.weight(1f)) {
+                Text(
+                    text = name,
+                    style = MaterialTheme.typography.titleMedium,
+                    color = MaterialTheme.colorScheme.onSurface,
+                )
+                val machineLabel = machine?.takeIf { it.isNotBlank() }
+                if (machineLabel != null) {
+                    Text(
+                        text = machineLabel,
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    )
+                }
+            }
             if (onRemove != null) {
                 // Always clickable so parent can explain why remove is blocked.
                 IconButton(
