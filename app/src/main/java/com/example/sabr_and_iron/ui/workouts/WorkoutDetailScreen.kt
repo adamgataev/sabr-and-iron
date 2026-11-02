@@ -6,13 +6,13 @@ import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.imePadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.text.KeyboardOptions
-import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.OutlinedTextField
@@ -35,6 +35,7 @@ import androidx.lifecycle.viewmodel.compose.viewModel
 import com.example.sabr_and_iron.data.local.model.WorkoutExerciseWithSets
 import com.example.sabr_and_iron.ui.components.AppCard
 import com.example.sabr_and_iron.ui.components.ConfirmDeleteDialog
+import com.example.sabr_and_iron.ui.components.IslandInsetDialog
 import com.example.sabr_and_iron.ui.components.LocalAppSnackbar
 import com.example.sabr_and_iron.ui.components.ReorderableExerciseRow
 import com.example.sabr_and_iron.ui.components.SelectExercisePickerRow
@@ -291,59 +292,51 @@ fun WorkoutDetailScreen(
     }
 
     if (showExercisePicker) {
-        AlertDialog(
+        IslandInsetDialog(
             onDismissRequest = { showExercisePicker = false },
-            title = { Text("Add exercise") },
-            text = {
-                if (availableExercises.isEmpty()) {
-                    Text(
-                        "Every exercise is already in this workout.",
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    )
-                } else {
-                    LazyColumn {
-                        items(availableExercises, key = { it.id }) { exercise ->
-                            SelectExercisePickerRow(
-                                name = exercise.name,
-                                machine = exercise.machine,
-                                onClick = {
-                                    viewModel.addExercise(workoutId, exercise.id) {
-                                        showExercisePicker = false
-                                    }
-                                },
-                            )
-                        }
-                    }
-                }
-            },
-            confirmButton = {
-                TextButton(onClick = { showExercisePicker = false }) { Text("Close") }
-            },
-        )
-    }
-
-    if (showRoutinePicker) {
-        AlertDialog(
-            onDismissRequest = { showRoutinePicker = false },
-            title = { Text("Add routine") },
-            text = {
-                LazyColumn {
-                    items(routines, key = { it.id }) { routine ->
-                        SelectRoutinePickerRow(
-                            name = routine.name,
-                            inspiredBy = routine.inspiredBy,
+            title = "Add exercise",
+        ) {
+            if (availableExercises.isEmpty()) {
+                Text(
+                    "Every exercise is already in this workout.",
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+            } else {
+                LazyColumn(modifier = Modifier.heightIn(max = 360.dp)) {
+                    items(availableExercises, key = { it.id }) { exercise ->
+                        SelectExercisePickerRow(
+                            name = exercise.name,
+                            machine = exercise.machine,
                             onClick = {
-                                viewModel.addRoutineExercises(workoutId, routine.id) {
-                                    showRoutinePicker = false
+                                viewModel.addExercise(workoutId, exercise.id) {
+                                    showExercisePicker = false
                                 }
                             },
                         )
                     }
                 }
-            },
-            confirmButton = {
-                TextButton(onClick = { showRoutinePicker = false }) { Text("Close") }
-            },
-        )
+            }
+        }
+    }
+
+    if (showRoutinePicker) {
+        IslandInsetDialog(
+            onDismissRequest = { showRoutinePicker = false },
+            title = "Add routine",
+        ) {
+            LazyColumn(modifier = Modifier.heightIn(max = 360.dp)) {
+                items(routines, key = { it.id }) { routine ->
+                    SelectRoutinePickerRow(
+                        name = routine.name,
+                        inspiredBy = routine.inspiredBy,
+                        onClick = {
+                            viewModel.addRoutineExercises(workoutId, routine.id) {
+                                showRoutinePicker = false
+                            }
+                        },
+                    )
+                }
+            }
+        }
     }
 }

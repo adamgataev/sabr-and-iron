@@ -7,6 +7,7 @@ import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.imePadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.lazy.LazyColumn
@@ -43,6 +44,7 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.example.sabr_and_iron.data.local.entity.ExerciseEntity
 import com.example.sabr_and_iron.ui.components.FloatingIslandTopClearance
+import com.example.sabr_and_iron.ui.components.IslandInsetDialog
 import com.example.sabr_and_iron.ui.components.LocalAppSnackbar
 import com.example.sabr_and_iron.ui.components.ReorderableExerciseRow
 import com.example.sabr_and_iron.ui.components.SelectExercisePickerRow
@@ -187,67 +189,59 @@ fun WorkoutFormScreen(
     }
 
     if (showExercisePicker) {
-        AlertDialog(
+        IslandInsetDialog(
             onDismissRequest = { showExercisePicker = false },
-            title = { Text("Select exercise") },
-            text = {
-                if (availableExercises.isEmpty()) {
-                    Text(
-                        "Every exercise is already in this workout.",
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    )
-                } else {
-                    LazyColumn {
-                        items(availableExercises, key = { it.id }) { exercise ->
-                            SelectExercisePickerRow(
-                                name = exercise.name,
-                                machine = exercise.machine,
-                                onClick = {
-                                    selected.add(exercise)
-                                    showExercisePicker = false
-                                },
-                            )
-                        }
-                    }
-                }
-            },
-            confirmButton = {
-                TextButton(onClick = { showExercisePicker = false }) { Text("Close") }
-            },
-        )
-    }
-
-    if (showRoutinePicker) {
-        AlertDialog(
-            onDismissRequest = { showRoutinePicker = false },
-            title = { Text("Select routine") },
-            text = {
-                LazyColumn {
-                    items(routines, key = { it.id }) { routine ->
-                        SelectRoutinePickerRow(
-                            name = routine.name,
-                            inspiredBy = routine.inspiredBy,
+            title = "Select exercise",
+        ) {
+            if (availableExercises.isEmpty()) {
+                Text(
+                    "Every exercise is already in this workout.",
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+            } else {
+                LazyColumn(modifier = Modifier.heightIn(max = 360.dp)) {
+                    items(availableExercises, key = { it.id }) { exercise ->
+                        SelectExercisePickerRow(
+                            name = exercise.name,
+                            machine = exercise.machine,
                             onClick = {
-                                scope.launch {
-                                    val ids = viewModel.routineExerciseIds(routine.id)
-                                    val byId = library.associateBy { it.id }
-                                    val presentIds = selected.map { it.id }.toSet()
-                                    val fromRoutine = ids.mapNotNull { byId[it] }
-                                    val skipped = fromRoutine.filter { it.id in presentIds }
-                                    val toAdd = fromRoutine.filter { it.id !in presentIds }
-                                    toAdd.forEach { selected.add(it) }
-                                    showRoutinePicker = false
-                                    viewModel.showRoutineDuplicates(skipped.map { it.name })
-                                }
+                                selected.add(exercise)
+                                showExercisePicker = false
                             },
                         )
                     }
                 }
-            },
-            confirmButton = {
-                TextButton(onClick = { showRoutinePicker = false }) { Text("Close") }
-            },
-        )
+            }
+        }
+    }
+
+    if (showRoutinePicker) {
+        IslandInsetDialog(
+            onDismissRequest = { showRoutinePicker = false },
+            title = "Select routine",
+        ) {
+            LazyColumn(modifier = Modifier.heightIn(max = 360.dp)) {
+                items(routines, key = { it.id }) { routine ->
+                    SelectRoutinePickerRow(
+                        name = routine.name,
+                        inspiredBy = routine.inspiredBy,
+                        onClick = {
+                            scope.launch {
+                                val ids = viewModel.routineExerciseIds(routine.id)
+                                val byId = library.associateBy { it.id }
+                                val presentIds = selected.map { it.id }.toSet()
+                                val fromRoutine = ids.mapNotNull { byId[it] }
+                                val skipped = fromRoutine.filter { it.id in presentIds }
+                                val toAdd = fromRoutine.filter { it.id !in presentIds }
+                                toAdd.forEach { selected.add(it) }
+                                showRoutinePicker = false
+                                viewModel.showRoutineDuplicates(skipped.map { it.name })
+                            }
+                        },
+                    )
+                }
+            }
+        }
     }
 
     if (showDatePicker) {

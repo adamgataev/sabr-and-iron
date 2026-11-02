@@ -24,11 +24,15 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.KeyboardOptions
+import androidx.compose.foundation.text.input.TextFieldLineLimits
+import androidx.compose.foundation.text.input.rememberTextFieldState
+import androidx.compose.foundation.text.input.setTextAndPlaceCursorAtEnd
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.Edit
 import androidx.compose.material3.Button
+import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
@@ -40,13 +44,18 @@ import androidx.compose.material3.Surface
 import androidx.compose.material3.Tab
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
+import androidx.compose.material3.TextFieldLabelPosition
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.runtime.setValue
+import androidx.compose.runtime.snapshotFlow
+import kotlinx.coroutines.flow.collectLatest
+import kotlinx.coroutines.flow.drop
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -311,172 +320,139 @@ fun ActiveExerciseScreen(
             if (page == 0) {
                 val machineLabel = exercise?.machine?.takeIf { it.isNotBlank() }
                 val muscles = exercise?.targetedMuscles.orEmpty()
-                val effectivePreview = parseFlexibleDouble(addedWeight)?.let { weight ->
-                    when (exerciseType) {
-                        ExerciseType.Regular,
-                        ExerciseType.WeightedBodyweight,
-                        ExerciseType.Assisted,
-                        -> effectiveLoadKg(
-                            type = exerciseType,
-                            startingResistanceKg = workoutExercise?.startingResistanceKg,
-                            addedWeightKg = weight,
-                            bodyWeightKg = bodyWeight,
-                        )
-                        else -> null
-                    }
-                }
                 Column(
                     modifier = Modifier
                         .fillMaxSize()
                         .imePadding()
+                        .verticalScroll(rememberScrollState())
                         .padding(horizontal = 16.dp)
-                        .padding(top = 16.dp),
+                        .padding(top = 16.dp, bottom = 24.dp),
+                    verticalArrangement = Arrangement.spacedBy(12.dp),
                 ) {
-                    Column(
-                        modifier = Modifier
-                            .weight(1f)
-                            .fillMaxWidth()
-                            .verticalScroll(rememberScrollState())
-                            .padding(bottom = 12.dp),
-                        verticalArrangement = Arrangement.spacedBy(12.dp),
-                    ) {
-                        Column {
-                            Text(exerciseName, style = MaterialTheme.typography.headlineSmall)
-                            if (machineLabel != null) {
-                                Text(
-                                    machineLabel,
-                                    style = MaterialTheme.typography.bodyMedium,
-                                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                                    modifier = Modifier.padding(top = 6.dp),
-                                )
-                            }
-                            if (muscles.isNotEmpty()) {
-                                FlowRow(
-                                    horizontalArrangement = Arrangement.spacedBy(8.dp),
-                                    modifier = Modifier.padding(top = 6.dp),
-                                ) {
-                                    muscles.forEach { muscle ->
-                                        Text(
-                                            text = muscle.name,
-                                            style = MaterialTheme.typography.bodyMedium,
-                                            color = muscle.color,
-                                        )
-                                    }
-                                }
-                            }
+                    Column {
+                        Text(exerciseName, style = MaterialTheme.typography.headlineSmall)
+                        if (machineLabel != null) {
                             Text(
-                                exerciseType.label,
-                                style = MaterialTheme.typography.labelLarge,
+                                machineLabel,
+                                style = MaterialTheme.typography.bodyMedium,
                                 color = MaterialTheme.colorScheme.onSurfaceVariant,
-                                modifier = Modifier.padding(top = 4.dp),
+                                modifier = Modifier.padding(top = 6.dp),
                             )
                         }
-                        MetaLine(
-                            bodyWeight = bodyWeight,
-                            needsBodyWeight = needsBodyWeight,
-                            startingResistanceKg = workoutExercise?.startingResistanceKg
-                                ?.takeIf { exerciseType.usesStartingResistance },
-                        )
-                        if (missingBodyWeight) {
-                            Text(
-                                "Set body weight on the workout to log this exercise.",
-                                color = MaterialTheme.colorScheme.error,
-                                style = MaterialTheme.typography.bodyMedium,
-                            )
-                        }
-
-                        Text("Sets", style = MaterialTheme.typography.titleMedium)
-                        if (sets.isEmpty()) {
-                            Text(
-                                "No sets logged yet.",
-                                color = MaterialTheme.colorScheme.onSurfaceVariant,
-                                style = MaterialTheme.typography.bodyMedium,
-                            )
-                        } else {
-                            Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                                sets.forEach { set ->
-                                    SetCard(
-                                        set = set,
-                                        type = exerciseType,
-                                        startingResistanceKg = workoutExercise?.startingResistanceKg,
-                                        bodyWeightKg = bodyWeight,
-                                        onEdit = { setToEdit = set },
-                                        onDelete = { setToDelete = set },
+                        if (muscles.isNotEmpty()) {
+                            FlowRow(
+                                horizontalArrangement = Arrangement.spacedBy(8.dp),
+                                modifier = Modifier.padding(top = 6.dp),
+                            ) {
+                                muscles.forEach { muscle ->
+                                    Text(
+                                        text = muscle.name,
+                                        style = MaterialTheme.typography.bodyMedium,
+                                        color = muscle.color,
                                     )
                                 }
                             }
                         }
-
-                        Text("Rest timer", style = MaterialTheme.typography.titleMedium)
-                        Row(
-                            modifier = Modifier.fillMaxWidth(),
-                            horizontalArrangement = Arrangement.spacedBy(8.dp),
-                            verticalAlignment = Alignment.CenterVertically,
-                        ) {
-                            Text(
-                                formatTimer(remaining),
-                                style = MaterialTheme.typography.headlineMedium,
-                                color = MaterialTheme.colorScheme.primary,
-                                modifier = Modifier.weight(1f),
-                            )
-                            OutlinedButton(onClick = { timer.adjust(-15) }, enabled = !running) {
-                                Text("-15s")
-                            }
-                            OutlinedButton(onClick = { timer.adjust(15) }, enabled = !running) {
-                                Text("+15s")
-                            }
-                            if (running) {
-                                Button(onClick = { timer.stop() }) { Text("Stop") }
-                            } else {
-                                Button(onClick = { timer.start() }, enabled = remaining > 0) {
-                                    Text("Start")
-                                }
-                            }
-                        }
-
-                        Text("Add set", style = MaterialTheme.typography.titleMedium)
-                        SetInputFields(
-                            exerciseType = exerciseType,
-                            addedWeight = addedWeight,
-                            onAddedWeightChange = { addedWeight = it },
-                            reps = reps,
-                            onRepsChange = { reps = it },
-                            durationMinutes = durationMinutes,
-                            onDurationMinutesChange = { durationMinutes = it },
-                            durationSeconds = durationSeconds,
-                            onDurationSecondsChange = { durationSeconds = it },
-                            distanceKm = distanceKm,
-                            onDistanceKmChange = { distanceKm = it },
-                            startingResistanceKg = workoutExercise?.startingResistanceKg,
-                            bodyWeightKg = bodyWeight,
-                            inlineDifficulty = true,
-                            showEffectiveLoad = false,
-                            difficultyContent = {
-                                DifficultyIconButton(
-                                    difficulty = difficulty,
-                                    onClick = { showDifficultyPicker = true },
-                                )
-                            },
+                        Text(
+                            exerciseType.label,
+                            style = MaterialTheme.typography.labelLarge,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            modifier = Modifier.padding(top = 4.dp),
                         )
                     }
-                    Column(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .padding(bottom = 24.dp),
-                        verticalArrangement = Arrangement.spacedBy(8.dp),
-                    ) {
-                        if (effectivePreview != null) {
-                            Text(
-                                "Effective load: ${formatKg(effectivePreview)} kg",
-                                color = MaterialTheme.colorScheme.primary,
-                            )
-                        }
-                        Button(
-                            onClick = { submitSet() },
-                            modifier = Modifier.fillMaxWidth(),
-                            enabled = canSubmit(),
-                        ) { Text("Add set") }
+                    MetaLine(
+                        bodyWeight = bodyWeight,
+                        needsBodyWeight = needsBodyWeight,
+                        startingResistanceKg = workoutExercise?.startingResistanceKg
+                            ?.takeIf { exerciseType.usesStartingResistance },
+                    )
+                    if (missingBodyWeight) {
+                        Text(
+                            "Set body weight on the workout to log this exercise.",
+                            color = MaterialTheme.colorScheme.error,
+                            style = MaterialTheme.typography.bodyMedium,
+                        )
                     }
+
+                    Text("Sets", style = MaterialTheme.typography.titleMedium)
+                    if (sets.isEmpty()) {
+                        Text(
+                            "No sets logged yet.",
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            style = MaterialTheme.typography.bodyMedium,
+                        )
+                    } else {
+                        Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                            sets.forEach { set ->
+                                SetCard(
+                                    set = set,
+                                    type = exerciseType,
+                                    startingResistanceKg = workoutExercise?.startingResistanceKg,
+                                    bodyWeightKg = bodyWeight,
+                                    onEdit = { setToEdit = set },
+                                    onDelete = { setToDelete = set },
+                                )
+                            }
+                        }
+                    }
+
+                    Text("Rest timer", style = MaterialTheme.typography.titleMedium)
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.spacedBy(8.dp),
+                        verticalAlignment = Alignment.CenterVertically,
+                    ) {
+                        Text(
+                            formatTimer(remaining),
+                            style = MaterialTheme.typography.headlineMedium,
+                            color = MaterialTheme.colorScheme.primary,
+                            modifier = Modifier.weight(1f),
+                        )
+                        OutlinedButton(onClick = { timer.adjust(-15) }, enabled = !running) {
+                            Text("-15s")
+                        }
+                        OutlinedButton(onClick = { timer.adjust(15) }, enabled = !running) {
+                            Text("+15s")
+                        }
+                        if (running) {
+                            Button(onClick = { timer.stop() }) { Text("Stop") }
+                        } else {
+                            Button(onClick = { timer.start() }, enabled = remaining > 0) {
+                                Text("Start")
+                            }
+                        }
+                    }
+
+                    Text("Add set", style = MaterialTheme.typography.titleMedium)
+                    SetInputFields(
+                        exerciseType = exerciseType,
+                        addedWeight = addedWeight,
+                        onAddedWeightChange = { addedWeight = it },
+                        reps = reps,
+                        onRepsChange = { reps = it },
+                        durationMinutes = durationMinutes,
+                        onDurationMinutesChange = { durationMinutes = it },
+                        durationSeconds = durationSeconds,
+                        onDurationSecondsChange = { durationSeconds = it },
+                        distanceKm = distanceKm,
+                        onDistanceKmChange = { distanceKm = it },
+                        startingResistanceKg = workoutExercise?.startingResistanceKg,
+                        bodyWeightKg = bodyWeight,
+                        inlineDifficulty = true,
+                        showEffectiveLoad = true,
+                        alwaysMinimizeLabels = true,
+                        difficultyContent = {
+                            DifficultyIconButton(
+                                difficulty = difficulty,
+                                onClick = { showDifficultyPicker = true },
+                            )
+                        },
+                    )
+                    Button(
+                        onClick = { submitSet() },
+                        modifier = Modifier.fillMaxWidth(),
+                        enabled = canSubmit(),
+                    ) { Text("Add set") }
                 }
             } else {
                 LazyColumn(
@@ -956,6 +932,7 @@ private fun SetInputFields(
     inlineDifficulty: Boolean,
     difficultyContent: @Composable () -> Unit,
     showEffectiveLoad: Boolean = true,
+    alwaysMinimizeLabels: Boolean = false,
 ) {
     when (exerciseType) {
         ExerciseType.Regular,
@@ -1079,30 +1056,54 @@ private fun SetInputFields(
         ExerciseType.DistanceTime -> {
             if (inlineDifficulty) {
                 Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                    OutlinedTextField(
-                        value = distanceKm,
-                        onValueChange = onDistanceKmChange,
-                        label = { Text("Distance (km)") },
-                        modifier = Modifier.weight(1f),
-                        keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal),
-                        singleLine = true,
-                    )
-                    OutlinedTextField(
-                        value = durationMinutes,
-                        onValueChange = onDurationMinutesChange,
-                        label = { Text("Minutes") },
-                        modifier = Modifier.weight(1f),
-                        keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
-                        singleLine = true,
-                    )
-                    OutlinedTextField(
-                        value = durationSeconds,
-                        onValueChange = onDurationSecondsChange,
-                        label = { Text("Seconds") },
-                        modifier = Modifier.weight(1f),
-                        keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
-                        singleLine = true,
-                    )
+                    if (alwaysMinimizeLabels) {
+                        AlwaysMinimizedOutlinedField(
+                            value = distanceKm,
+                            onValueChange = onDistanceKmChange,
+                            label = "Distance (km)",
+                            modifier = Modifier.weight(1f),
+                            keyboardType = KeyboardType.Decimal,
+                        )
+                        AlwaysMinimizedOutlinedField(
+                            value = durationMinutes,
+                            onValueChange = onDurationMinutesChange,
+                            label = "Minutes",
+                            modifier = Modifier.weight(1f),
+                            keyboardType = KeyboardType.Number,
+                        )
+                        AlwaysMinimizedOutlinedField(
+                            value = durationSeconds,
+                            onValueChange = onDurationSecondsChange,
+                            label = "Seconds",
+                            modifier = Modifier.weight(1f),
+                            keyboardType = KeyboardType.Number,
+                        )
+                    } else {
+                        OutlinedTextField(
+                            value = distanceKm,
+                            onValueChange = onDistanceKmChange,
+                            label = { Text("Distance (km)") },
+                            modifier = Modifier.weight(1f),
+                            keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal),
+                            singleLine = true,
+                        )
+                        OutlinedTextField(
+                            value = durationMinutes,
+                            onValueChange = onDurationMinutesChange,
+                            label = { Text("Minutes") },
+                            modifier = Modifier.weight(1f),
+                            keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
+                            singleLine = true,
+                        )
+                        OutlinedTextField(
+                            value = durationSeconds,
+                            onValueChange = onDurationSecondsChange,
+                            label = { Text("Seconds") },
+                            modifier = Modifier.weight(1f),
+                            keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
+                            singleLine = true,
+                        )
+                    }
                 }
             } else {
                 OutlinedTextField(
@@ -1149,6 +1150,44 @@ private fun SetInputFields(
             }
         }
     }
+}
+
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+private fun AlwaysMinimizedOutlinedField(
+    value: String,
+    onValueChange: (String) -> Unit,
+    label: String,
+    modifier: Modifier = Modifier,
+    keyboardType: KeyboardType,
+) {
+    val state = rememberTextFieldState(initialText = value)
+    var syncingFromParent by remember { mutableStateOf(false) }
+    val latestValue by rememberUpdatedState(value)
+    LaunchedEffect(value) {
+        if (state.text.toString() != value) {
+            syncingFromParent = true
+            state.setTextAndPlaceCursorAtEnd(value)
+            syncingFromParent = false
+        }
+    }
+    LaunchedEffect(state) {
+        snapshotFlow { state.text.toString() }
+            .drop(1)
+            .collectLatest { text ->
+                if (!syncingFromParent && text != latestValue) {
+                    onValueChange(text)
+                }
+            }
+    }
+    OutlinedTextField(
+        state = state,
+        modifier = modifier,
+        labelPosition = TextFieldLabelPosition.Attached(alwaysMinimize = true),
+        label = { Text(label) },
+        keyboardOptions = KeyboardOptions(keyboardType = keyboardType),
+        lineLimits = TextFieldLineLimits.SingleLine,
+    )
 }
 
 @Composable

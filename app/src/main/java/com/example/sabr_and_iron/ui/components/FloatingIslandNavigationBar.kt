@@ -22,14 +22,23 @@ import androidx.compose.material3.NavigationBarItemDefaults
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.DisposableEffect
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.RectangleShape
+import androidx.compose.ui.platform.LocalView
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
+import androidx.core.view.ViewCompat
+import androidx.core.view.WindowInsetsCompat
 import androidx.navigation.NavDestination
 import androidx.navigation.NavDestination.Companion.hierarchy
 import androidx.navigation.NavGraph.Companion.findStartDestination
@@ -38,8 +47,10 @@ import com.example.sabr_and_iron.ui.navigation.AppDestination
 
 private val IslandShape = RoundedCornerShape(32.dp)
 
-/** Matches standard list horizontal inset (16.dp). */
-private val IslandHorizontalInset = 16.dp
+/** Matches standard list horizontal inset (16.dp). Also used for island-width dialogs. */
+val TabChromeHorizontalInset: Dp = 16.dp
+
+private val IslandHorizontalInset = TabChromeHorizontalInset
 
 private val IslandBottomInset = 24.dp
 
@@ -67,7 +78,7 @@ val FloatingIslandOnlyListBottomPadding: Dp = FloatingIslandTopClearance + 12.dp
 
 /**
  * Single bottom overlay: frost + optional action row (search/FAB) + opaque island.
- * Keeps FAB/search on the same layer as the nav island.
+ * When the IME is open the island collapses so search/FAB sit flush above the keyboard.
  */
 @Composable
 fun TabBottomChrome(
@@ -78,6 +89,22 @@ fun TabBottomChrome(
 ) {
     val frost = MaterialTheme.colorScheme.background.copy(alpha = 0.82f)
     val frostEdge = MaterialTheme.colorScheme.background.copy(alpha = 0f)
+    // enableEdgeToEdge() prevents classic adjustResize from lifting the window;
+    // use imePadding() below for layout. ViewCompat still drives island collapse
+    // (Compose IME bottom can be 0 even when the keyboard is visible).
+    val view = LocalView.current
+    var imeVisible by remember { mutableStateOf(false) }
+    DisposableEffect(view) {
+        val listener = android.view.ViewTreeObserver.OnGlobalLayoutListener {
+            imeVisible = ViewCompat.getRootWindowInsets(view)
+                ?.isVisible(WindowInsetsCompat.Type.ime()) == true
+        }
+        view.viewTreeObserver.addOnGlobalLayoutListener(listener)
+        listener.onGlobalLayout()
+        onDispose {
+            view.viewTreeObserver.removeOnGlobalLayoutListener(listener)
+        }
+    }
 
     Box(
         modifier = modifier
@@ -90,37 +117,64 @@ fun TabBottomChrome(
                 .align(Alignment.BottomCenter)
                 .fillMaxWidth(),
         ) {
-            Box(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .height(40.dp)
-                    .background(
-                        Brush.verticalGradient(
-                            colors = listOf(frostEdge, frost),
+            if (actionRow != null) {
+                Box(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .height(40.dp)
+                        .background(
+                            Brush.verticalGradient(
+                                colors = listOf(frostEdge, frost),
+                            ),
                         ),
-                    ),
-            )
-            Box(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .background(frost)
-                    .padding(bottom = IslandBottomInset),
-            ) {
-                Column {
-                    if (actionRow != null) {
-                        Row(
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .height(TabChromeActionRowHeight)
-                                .padding(horizontal = IslandHorizontalInset),
-                            verticalAlignment = Alignment.CenterVertically,
-                            horizontalArrangement = Arrangement.spacedBy(12.dp),
-                            content = actionRow,
-                        )
-                        Spacer(Modifier.height(ActionRowIslandGap))
-                    } else {
-                        Spacer(Modifier.height(8.dp))
-                    }
+                )
+                Surface(
+                    modifier = Modifier.fillMaxWidth(),
+                    shape = RectangleShape,
+                    color = frost,
+                    shadowElevation = 6.dp,
+                    tonalElevation = 0.dp,
+                ) {
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .height(TabChromeActionRowHeight)
+                            .padding(horizontal = IslandHorizontalInset),
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(12.dp),
+                        content = actionRow,
+                    )
+                }
+                if (!imeVisible) {
+                    Spacer(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .height(ActionRowIslandGap)
+                            .background(frost),
+                    )
+                }
+            } else if (!imeVisible) {
+                Box(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .height(40.dp)
+                        .background(
+                            Brush.verticalGradient(
+                                colors = listOf(frostEdge, frost),
+                            ),
+                        ),
+                )
+            }
+            if (!imeVisible) {
+                Box(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .background(frost)
+                        .padding(
+                            top = if (actionRow != null) 0.dp else 8.dp,
+                            bottom = IslandBottomInset,
+                        ),
+                ) {
                     FloatingIslandBar(
                         navController = navController,
                         currentDestination = currentDestination,

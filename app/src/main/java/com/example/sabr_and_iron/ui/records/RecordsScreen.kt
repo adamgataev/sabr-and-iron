@@ -58,7 +58,6 @@ import com.patrykandpatrick.vico.compose.cartesian.CartesianChartHost
 import com.patrykandpatrick.vico.compose.cartesian.VicoScrollState
 import com.patrykandpatrick.vico.compose.cartesian.VicoZoomState
 import com.patrykandpatrick.vico.compose.cartesian.axis.rememberBottom
-import com.patrykandpatrick.vico.compose.cartesian.axis.rememberEnd
 import com.patrykandpatrick.vico.compose.cartesian.axis.rememberStart
 import com.patrykandpatrick.vico.compose.cartesian.layer.point
 import com.patrykandpatrick.vico.compose.cartesian.layer.rememberLine
@@ -72,7 +71,6 @@ import com.patrykandpatrick.vico.compose.common.fill
 import com.patrykandpatrick.vico.compose.m3.common.rememberM3VicoTheme
 import com.patrykandpatrick.vico.core.cartesian.Scroll
 import com.patrykandpatrick.vico.core.cartesian.Zoom
-import com.patrykandpatrick.vico.core.cartesian.axis.Axis
 import com.patrykandpatrick.vico.core.cartesian.axis.HorizontalAxis
 import com.patrykandpatrick.vico.core.cartesian.axis.VerticalAxis
 import com.patrykandpatrick.vico.core.cartesian.data.CartesianChartModelProducer
@@ -256,6 +254,7 @@ private fun RecordTile(
     }
 }
 
+@OptIn(ExperimentalLayoutApi::class)
 @Composable
 fun RecordDetailScreen(
     exerciseId: Long,
@@ -307,6 +306,19 @@ fun RecordDetailScreen(
                     style = MaterialTheme.typography.bodyMedium,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                 )
+            }
+            if (record.targetedMuscles.isNotEmpty()) {
+                FlowRow(
+                    horizontalArrangement = Arrangement.spacedBy(8.dp),
+                ) {
+                    record.targetedMuscles.forEach { muscle ->
+                        Text(
+                            text = muscle.name,
+                            style = MaterialTheme.typography.bodyMedium,
+                            color = muscle.color,
+                        )
+                    }
+                }
             }
             Text(
                 text = record.exerciseType.label,
@@ -417,10 +429,6 @@ fun ProgressChart(
             }
         }
     }
-    val endAxisFormatter = remember {
-        CartesianValueFormatter { _, value, _ -> "${formatKg(value)} kg" }
-    }
-
     val ownedScrollState = rememberVicoScrollState(
         scrollEnabled = true,
         initialScroll = Scroll.Absolute.End,
@@ -452,9 +460,7 @@ fun ProgressChart(
         modelProducer.runTransaction {
             lineSeries {
                 series(y = yValues)
-            }
-            if (bodyXs.isNotEmpty()) {
-                lineSeries {
+                if (bodyXs.isNotEmpty()) {
                     series(x = bodyXs, y = bodyYs)
                 }
             }
@@ -499,65 +505,38 @@ fun ProgressChart(
                 }
             }
             if (chartReady) {
-                val loadLayer = rememberLineCartesianLayer(
-                    lineProvider = LineCartesianLayer.LineProvider.series(
-                        LineCartesianLayer.rememberLine(
-                            fill = LineCartesianLayer.LineFill.single(fill(AccentBlue)),
-                            pointProvider = LineCartesianLayer.PointProvider.single(
-                                LineCartesianLayer.point(
-                                    rememberShapeComponent(
-                                        fill = fill(AccentBlue),
-                                        shape = CorneredShape.Pill,
-                                    ),
-                                ),
-                            ),
-                        ),
-                    ),
-                )
-                val bodyLayer = rememberLineCartesianLayer(
-                    lineProvider = LineCartesianLayer.LineProvider.series(
-                        LineCartesianLayer.rememberLine(
-                            fill = LineCartesianLayer.LineFill.single(fill(ChartSecondary)),
-                            pointProvider = LineCartesianLayer.PointProvider.single(
-                                LineCartesianLayer.point(
-                                    rememberShapeComponent(
-                                        fill = fill(ChartSecondary),
-                                        shape = CorneredShape.Pill,
-                                    ),
-                                ),
-                            ),
-                        ),
-                    ),
-                    verticalAxisPosition = Axis.Position.Vertical.End,
-                )
+                val lineColors = if (showBodyWeight) {
+                    listOf(AccentBlue, ChartSecondary)
+                } else {
+                    listOf(AccentBlue)
+                }
                 CartesianChartHost(
-                    chart = if (showBodyWeight) {
-                        rememberCartesianChart(
-                            loadLayer,
-                            bodyLayer,
-                            startAxis = VerticalAxis.rememberStart(
-                                valueFormatter = startAxisFormatter,
+                    chart = rememberCartesianChart(
+                        rememberLineCartesianLayer(
+                            lineProvider = LineCartesianLayer.LineProvider.series(
+                                lineColors.map { color ->
+                                    LineCartesianLayer.rememberLine(
+                                        fill = LineCartesianLayer.LineFill.single(fill(color)),
+                                        pointProvider = LineCartesianLayer.PointProvider.single(
+                                            LineCartesianLayer.point(
+                                                rememberShapeComponent(
+                                                    fill = fill(color),
+                                                    shape = CorneredShape.Pill,
+                                                ),
+                                            ),
+                                        ),
+                                    )
+                                },
                             ),
-                            endAxis = VerticalAxis.rememberEnd(
-                                valueFormatter = endAxisFormatter,
-                            ),
-                            bottomAxis = HorizontalAxis.rememberBottom(
-                                valueFormatter = bottomAxisFormatter,
-                                labelRotationDegrees = -35f,
-                            ),
-                        )
-                    } else {
-                        rememberCartesianChart(
-                            loadLayer,
-                            startAxis = VerticalAxis.rememberStart(
-                                valueFormatter = startAxisFormatter,
-                            ),
-                            bottomAxis = HorizontalAxis.rememberBottom(
-                                valueFormatter = bottomAxisFormatter,
-                                labelRotationDegrees = -35f,
-                            ),
-                        )
-                    },
+                        ),
+                        startAxis = VerticalAxis.rememberStart(
+                            valueFormatter = startAxisFormatter,
+                        ),
+                        bottomAxis = HorizontalAxis.rememberBottom(
+                            valueFormatter = bottomAxisFormatter,
+                            labelRotationDegrees = -35f,
+                        ),
+                    ),
                     modelProducer = modelProducer,
                     scrollState = effectiveScroll,
                     zoomState = effectiveZoom,
