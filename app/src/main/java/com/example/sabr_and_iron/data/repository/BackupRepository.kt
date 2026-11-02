@@ -4,6 +4,8 @@ import android.content.Context
 import android.net.Uri
 import androidx.room.withTransaction
 import com.example.sabr_and_iron.data.backup.AppBackup
+import com.example.sabr_and_iron.data.backup.CURRENT_BACKUP_VERSION
+import com.example.sabr_and_iron.data.backup.ExcelBackupCodec
 import com.example.sabr_and_iron.data.backup.ExerciseBackup
 import com.example.sabr_and_iron.data.backup.RoutineBackup
 import com.example.sabr_and_iron.data.backup.RoutineExerciseBackup
@@ -24,13 +26,7 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.withContext
 import kotlinx.serialization.json.Json
-import org.apache.poi.ss.usermodel.CellType
-import org.apache.poi.ss.usermodel.DataFormatter
-import org.apache.poi.ss.usermodel.Row
-import org.apache.poi.ss.usermodel.Sheet
-import org.apache.poi.xssf.usermodel.XSSFWorkbook
 import java.io.File
-import java.io.FileOutputStream
 import java.io.InputStream
 import java.text.SimpleDateFormat
 import java.util.Date
@@ -44,8 +40,6 @@ class BackupRepository(
         prettyPrint = true
         ignoreUnknownKeys = true
     }
-
-    private val dataFormatter = DataFormatter()
 
     suspend fun exportJson(): File = withContext(Dispatchers.IO) {
         val backup = collectBackup()
@@ -84,169 +78,9 @@ class BackupRepository(
 
     suspend fun exportExcel(): File = withContext(Dispatchers.IO) {
         val backup = collectBackup()
-        val exercisesById = backup.exercises.associateBy { it.id }
-        val workbook = XSSFWorkbook()
-
-        writeSheet(
-            workbook = workbook,
-            name = SHEET_EXERCISES,
-            headers = listOf(
-                "id", "name", "machine", "targetedMuscles", "exerciseType",
-                "startingResistanceKg", "defaultRestSeconds",
-            ),
-        ) { sheet ->
-            backup.exercises.forEachIndexed { index, item ->
-                val row = sheet.createRow(index + 1)
-                row.setNumber(0, item.id.toDouble())
-                row.setText(1, item.name)
-                item.machine?.let { row.setText(2, it) }
-                row.setText(3, item.targetedMuscles.joinToString(","))
-                row.setText(4, item.exerciseType)
-                item.startingResistanceKg?.let { row.setNumber(5, it) }
-                item.defaultRestSeconds?.let { row.setNumber(6, it.toDouble()) }
-            }
-        }
-
-        writeSheet(
-            workbook = workbook,
-            name = SHEET_ROUTINES,
-            headers = listOf("id", "name", "inspiredBy"),
-        ) { sheet ->
-            backup.routines.forEachIndexed { index, item ->
-                val row = sheet.createRow(index + 1)
-                row.setNumber(0, item.id.toDouble())
-                row.setText(1, item.name)
-                item.inspiredBy?.let { row.setText(2, it) }
-            }
-        }
-
-        writeSheet(
-            workbook = workbook,
-            name = SHEET_ROUTINE_EXERCISES,
-            headers = listOf("id", "routineId", "exerciseId", "position"),
-        ) { sheet ->
-            backup.routineExercises.forEachIndexed { index, item ->
-                val row = sheet.createRow(index + 1)
-                row.setNumber(0, item.id.toDouble())
-                row.setNumber(1, item.routineId.toDouble())
-                row.setNumber(2, item.exerciseId.toDouble())
-                row.setNumber(3, item.position.toDouble())
-            }
-        }
-
-        writeSheet(
-            workbook = workbook,
-            name = SHEET_WORKOUTS,
-            headers = listOf("id", "name", "performedAt", "bodyWeightKg"),
-        ) { sheet ->
-            backup.workouts.forEachIndexed { index, item ->
-                val row = sheet.createRow(index + 1)
-                row.setNumber(0, item.id.toDouble())
-                row.setText(1, item.name)
-                row.setNumber(2, item.performedAt.toDouble())
-                item.bodyWeightKg?.let { row.setNumber(3, it) }
-            }
-        }
-
-        writeSheet(
-            workbook = workbook,
-            name = SHEET_WORKOUT_EXERCISES,
-            headers = listOf(
-                "id", "workoutId", "exerciseId", "position", "startingResistanceKg",
-            ),
-        ) { sheet ->
-            backup.workoutExercises.forEachIndexed { index, item ->
-                val row = sheet.createRow(index + 1)
-                row.setNumber(0, item.id.toDouble())
-                row.setNumber(1, item.workoutId.toDouble())
-                row.setNumber(2, item.exerciseId.toDouble())
-                row.setNumber(3, item.position.toDouble())
-                item.startingResistanceKg?.let { row.setNumber(4, it) }
-            }
-        }
-
-        writeSheet(
-            workbook = workbook,
-            name = SHEET_SETS,
-            headers = listOf(
-                "id", "workoutExerciseId", "addedWeightKg", "reps", "difficulty",
-                "position", "durationSeconds", "distanceMeters",
-            ),
-        ) { sheet ->
-            backup.sets.forEachIndexed { index, item ->
-                val row = sheet.createRow(index + 1)
-                row.setNumber(0, item.id.toDouble())
-                row.setNumber(1, item.workoutExerciseId.toDouble())
-                row.setNumber(2, item.addedWeightKg)
-                row.setNumber(3, item.reps.toDouble())
-                row.setText(4, item.difficulty)
-                row.setNumber(5, item.position.toDouble())
-                item.durationSeconds?.let { row.setNumber(6, it.toDouble()) }
-                item.distanceMeters?.let { row.setNumber(7, it) }
-            }
-        }
-
-        writeSheet(
-            workbook = workbook,
-            name = SHEET_WORKOUTS_READABLE,
-            headers = listOf(
-                "workoutId", "workoutName", "performedAt", "bodyWeightKg",
-                "exercise", "set", "addedKg", "effectiveKg", "reps",
-                "durationSec", "distanceM", "difficulty",
-            ),
-        ) { sheet ->
-            var rowIndex = 1
-            backup.workouts.sortedByDescending { it.performedAt }.forEach { workout ->
-                val weList = backup.workoutExercises
-                    .filter { it.workoutId == workout.id }
-                    .sortedBy { it.position }
-                if (weList.isEmpty()) {
-                    val row = sheet.createRow(rowIndex++)
-                    row.setNumber(0, workout.id.toDouble())
-                    row.setText(1, workout.name)
-                    row.setText(2, formatDate(workout.performedAt))
-                    workout.bodyWeightKg?.let { row.setNumber(3, it) }
-                } else {
-                    weList.forEach { we ->
-                        val sets = backup.sets
-                            .filter { it.workoutExerciseId == we.id }
-                            .sortedBy { it.position }
-                        val exerciseName = exercisesById[we.exerciseId]?.name.orEmpty()
-                        if (sets.isEmpty()) {
-                            val row = sheet.createRow(rowIndex++)
-                            row.setNumber(0, workout.id.toDouble())
-                            row.setText(1, workout.name)
-                            row.setText(2, formatDate(workout.performedAt))
-                            workout.bodyWeightKg?.let { row.setNumber(3, it) }
-                            row.setText(4, exerciseName)
-                        } else {
-                            sets.forEach { set ->
-                                val effective =
-                                    (we.startingResistanceKg ?: 0.0) + set.addedWeightKg
-                                val row = sheet.createRow(rowIndex++)
-                                row.setNumber(0, workout.id.toDouble())
-                                row.setText(1, workout.name)
-                                row.setText(2, formatDate(workout.performedAt))
-                                workout.bodyWeightKg?.let { row.setNumber(3, it) }
-                                row.setText(4, exerciseName)
-                                row.setNumber(5, (set.position + 1).toDouble())
-                                row.setNumber(6, set.addedWeightKg)
-                                row.setNumber(7, effective)
-                                row.setNumber(8, set.reps.toDouble())
-                                set.durationSeconds?.let { row.setNumber(9, it.toDouble()) }
-                                set.distanceMeters?.let { row.setNumber(10, it) }
-                                row.setText(11, set.difficulty)
-                            }
-                        }
-                    }
-                }
-            }
-        }
-
         val dir = File(context.filesDir, "exports").also { it.mkdirs() }
         val file = File(dir, "sabr_iron_export_${timestamp()}.xlsx")
-        FileOutputStream(file).use { workbook.write(it) }
-        workbook.close()
+        ExcelBackupCodec.write(backup, file)
         file
     }
 
@@ -257,26 +91,7 @@ class BackupRepository(
     }
 
     suspend fun importExcel(inputStream: InputStream) = withContext(Dispatchers.IO) {
-        val workbook = XSSFWorkbook(inputStream)
-        try {
-            val backup = AppBackup(
-                version = CURRENT_BACKUP_VERSION,
-                exportedAt = System.currentTimeMillis(),
-                exercises = readExercises(requireSheet(workbook, SHEET_EXERCISES)),
-                routines = readRoutines(requireSheet(workbook, SHEET_ROUTINES)),
-                routineExercises = readRoutineExercises(
-                    requireSheet(workbook, SHEET_ROUTINE_EXERCISES),
-                ),
-                workouts = readWorkouts(requireSheet(workbook, SHEET_WORKOUTS)),
-                workoutExercises = readWorkoutExercises(
-                    requireSheet(workbook, SHEET_WORKOUT_EXERCISES),
-                ),
-                sets = readSets(requireSheet(workbook, SHEET_SETS)),
-            )
-            restoreBackup(backup)
-        } finally {
-            workbook.close()
-        }
+        restoreBackup(ExcelBackupCodec.read(inputStream))
     }
 
     private suspend fun restoreBackup(backup: AppBackup) {
@@ -455,210 +270,8 @@ class BackupRepository(
         )
     }
 
-    private fun writeSheet(
-        workbook: XSSFWorkbook,
-        name: String,
-        headers: List<String>,
-        fill: (Sheet) -> Unit,
-    ) {
-        val sheet = workbook.createSheet(name)
-        val header = sheet.createRow(0)
-        headers.forEachIndexed { i, title -> header.setText(i, title) }
-        fill(sheet)
-    }
-
-    private fun requireSheet(workbook: XSSFWorkbook, name: String): Sheet =
-        workbook.getSheet(name) ?: error("Excel backup is missing sheet \"$name\"")
-
-    private fun headerIndex(sheet: Sheet): Map<String, Int> {
-        val header = sheet.getRow(0) ?: error("Sheet \"${sheet.sheetName}\" has no header row")
-        val map = linkedMapOf<String, Int>()
-        for (cell in header) {
-            val name = dataFormatter.formatCellValue(cell).trim()
-            if (name.isNotEmpty()) map[name] = cell.columnIndex
-        }
-        return map
-    }
-
-    private fun requireColumn(headers: Map<String, Int>, name: String, sheet: String): Int =
-        headers[name] ?: error("Sheet \"$sheet\" is missing column \"$name\"")
-
-    private fun readExercises(sheet: Sheet): List<ExerciseBackup> {
-        val headers = headerIndex(sheet)
-        val idCol = requireColumn(headers, "id", sheet.sheetName)
-        val nameCol = requireColumn(headers, "name", sheet.sheetName)
-        val machineCol = headers["machine"]
-        val musclesCol = requireColumn(headers, "targetedMuscles", sheet.sheetName)
-        val typeCol = requireColumn(headers, "exerciseType", sheet.sheetName)
-        val startingCol = headers["startingResistanceKg"]
-        val restCol = headers["defaultRestSeconds"]
-        return dataRows(sheet).map { row ->
-            ExerciseBackup(
-                id = row.requireLong(idCol, "id"),
-                name = row.requireText(nameCol, "name"),
-                machine = machineCol?.let { row.textOrNull(it) },
-                targetedMuscles = row.textOrNull(musclesCol)
-                    ?.split(",")
-                    ?.map { it.trim() }
-                    ?.filter { it.isNotEmpty() }
-                    .orEmpty(),
-                exerciseType = row.requireText(typeCol, "exerciseType"),
-                startingResistanceKg = startingCol?.let { row.doubleOrNull(it) },
-                defaultRestSeconds = restCol?.let { row.intOrNull(it) },
-            )
-        }
-    }
-
-    private fun readRoutines(sheet: Sheet): List<RoutineBackup> {
-        val headers = headerIndex(sheet)
-        val idCol = requireColumn(headers, "id", sheet.sheetName)
-        val nameCol = requireColumn(headers, "name", sheet.sheetName)
-        val inspiredCol = headers["inspiredBy"]
-        return dataRows(sheet).map { row ->
-            RoutineBackup(
-                id = row.requireLong(idCol, "id"),
-                name = row.requireText(nameCol, "name"),
-                inspiredBy = inspiredCol?.let { row.textOrNull(it) },
-            )
-        }
-    }
-
-    private fun readRoutineExercises(sheet: Sheet): List<RoutineExerciseBackup> {
-        val headers = headerIndex(sheet)
-        val idCol = requireColumn(headers, "id", sheet.sheetName)
-        val routineCol = requireColumn(headers, "routineId", sheet.sheetName)
-        val exerciseCol = requireColumn(headers, "exerciseId", sheet.sheetName)
-        val positionCol = requireColumn(headers, "position", sheet.sheetName)
-        return dataRows(sheet).map { row ->
-            RoutineExerciseBackup(
-                id = row.requireLong(idCol, "id"),
-                routineId = row.requireLong(routineCol, "routineId"),
-                exerciseId = row.requireLong(exerciseCol, "exerciseId"),
-                position = row.requireInt(positionCol, "position"),
-            )
-        }
-    }
-
-    private fun readWorkouts(sheet: Sheet): List<WorkoutBackup> {
-        val headers = headerIndex(sheet)
-        val idCol = requireColumn(headers, "id", sheet.sheetName)
-        val nameCol = requireColumn(headers, "name", sheet.sheetName)
-        val performedCol = requireColumn(headers, "performedAt", sheet.sheetName)
-        val bodyCol = headers["bodyWeightKg"]
-        return dataRows(sheet).map { row ->
-            WorkoutBackup(
-                id = row.requireLong(idCol, "id"),
-                name = row.requireText(nameCol, "name"),
-                performedAt = row.requireLong(performedCol, "performedAt"),
-                bodyWeightKg = bodyCol?.let { row.doubleOrNull(it) },
-            )
-        }
-    }
-
-    private fun readWorkoutExercises(sheet: Sheet): List<WorkoutExerciseBackup> {
-        val headers = headerIndex(sheet)
-        val idCol = requireColumn(headers, "id", sheet.sheetName)
-        val workoutCol = requireColumn(headers, "workoutId", sheet.sheetName)
-        val exerciseCol = requireColumn(headers, "exerciseId", sheet.sheetName)
-        val positionCol = requireColumn(headers, "position", sheet.sheetName)
-        val startingCol = headers["startingResistanceKg"]
-        return dataRows(sheet).map { row ->
-            WorkoutExerciseBackup(
-                id = row.requireLong(idCol, "id"),
-                workoutId = row.requireLong(workoutCol, "workoutId"),
-                exerciseId = row.requireLong(exerciseCol, "exerciseId"),
-                position = row.requireInt(positionCol, "position"),
-                startingResistanceKg = startingCol?.let { row.doubleOrNull(it) },
-            )
-        }
-    }
-
-    private fun readSets(sheet: Sheet): List<SetBackup> {
-        val headers = headerIndex(sheet)
-        val idCol = requireColumn(headers, "id", sheet.sheetName)
-        val weCol = requireColumn(headers, "workoutExerciseId", sheet.sheetName)
-        val addedCol = requireColumn(headers, "addedWeightKg", sheet.sheetName)
-        val repsCol = requireColumn(headers, "reps", sheet.sheetName)
-        val difficultyCol = requireColumn(headers, "difficulty", sheet.sheetName)
-        val positionCol = requireColumn(headers, "position", sheet.sheetName)
-        val durationCol = headers["durationSeconds"]
-        val distanceCol = headers["distanceMeters"]
-        return dataRows(sheet).map { row ->
-            SetBackup(
-                id = row.requireLong(idCol, "id"),
-                workoutExerciseId = row.requireLong(weCol, "workoutExerciseId"),
-                addedWeightKg = row.requireDouble(addedCol, "addedWeightKg"),
-                reps = row.requireInt(repsCol, "reps"),
-                difficulty = row.requireText(difficultyCol, "difficulty"),
-                position = row.requireInt(positionCol, "position"),
-                durationSeconds = durationCol?.let { row.intOrNull(it) },
-                distanceMeters = distanceCol?.let { row.doubleOrNull(it) },
-            )
-        }
-    }
-
-    private fun dataRows(sheet: Sheet): List<Row> =
-        (1..sheet.lastRowNum)
-            .mapNotNull { sheet.getRow(it) }
-            .filter { row ->
-                (0 until row.lastCellNum.coerceAtLeast(0)).any { index ->
-                    val cell = row.getCell(index) ?: return@any false
-                    when (cell.cellType) {
-                        CellType.BLANK -> false
-                        CellType.STRING -> cell.stringCellValue.isNotBlank()
-                        else -> true
-                    }
-                }
-            }
-
-    private fun Row.setText(index: Int, value: String) {
-        createCell(index).setCellValue(value)
-    }
-
-    private fun Row.setNumber(index: Int, value: Double) {
-        createCell(index).setCellValue(value)
-    }
-
-    private fun Row.textOrNull(index: Int): String? {
-        val cell = getCell(index) ?: return null
-        val text = dataFormatter.formatCellValue(cell).trim()
-        return text.takeIf { it.isNotEmpty() }
-    }
-
-    private fun Row.requireText(index: Int, column: String): String =
-        textOrNull(index) ?: error("Missing text in column \"$column\"")
-
-    private fun Row.doubleOrNull(index: Int): Double? {
-        val cell = getCell(index) ?: return null
-        return when (cell.cellType) {
-            CellType.BLANK -> null
-            CellType.NUMERIC -> cell.numericCellValue
-            CellType.STRING -> cell.stringCellValue.trim().takeIf { it.isNotEmpty() }?.toDoubleOrNull()
-            CellType.FORMULA -> runCatching { cell.numericCellValue }.getOrNull()
-            else -> dataFormatter.formatCellValue(cell).trim().takeIf { it.isNotEmpty() }?.toDoubleOrNull()
-        }
-    }
-
-    private fun Row.requireDouble(index: Int, column: String): Double =
-        doubleOrNull(index) ?: error("Missing number in column \"$column\"")
-
-    private fun Row.longOrNull(index: Int): Long? =
-        doubleOrNull(index)?.toLong()
-
-    private fun Row.requireLong(index: Int, column: String): Long =
-        longOrNull(index) ?: error("Missing id/number in column \"$column\"")
-
-    private fun Row.intOrNull(index: Int): Int? =
-        doubleOrNull(index)?.toInt()
-
-    private fun Row.requireInt(index: Int, column: String): Int =
-        intOrNull(index) ?: error("Missing integer in column \"$column\"")
-
     private fun timestamp(): String =
         SimpleDateFormat("yyyyMMdd_HHmmss", Locale.US).format(Date())
-
-    private fun formatDate(epochMillis: Long): String =
-        SimpleDateFormat("yyyy-MM-dd HH:mm", Locale.US).format(Date(epochMillis))
 
     private inline fun <reified T : Enum<T>> parseEnum(
         raw: String,
@@ -671,15 +284,4 @@ class BackupRepository(
             error("Unknown $typeName \"$raw\"")
         }
 
-    companion object {
-        const val CURRENT_BACKUP_VERSION = 2
-
-        private const val SHEET_EXERCISES = "Exercises"
-        private const val SHEET_ROUTINES = "Routines"
-        private const val SHEET_ROUTINE_EXERCISES = "RoutineExercises"
-        private const val SHEET_WORKOUTS = "Workouts"
-        private const val SHEET_WORKOUT_EXERCISES = "WorkoutExercises"
-        private const val SHEET_SETS = "Sets"
-        private const val SHEET_WORKOUTS_READABLE = "WorkoutsReadable"
-    }
 }

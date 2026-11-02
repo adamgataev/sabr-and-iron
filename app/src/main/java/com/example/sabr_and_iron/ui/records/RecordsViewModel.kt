@@ -25,7 +25,9 @@ enum class RecordsSort {
 class RecordsViewModel(application: Application) : AndroidViewModel(application) {
     private val app = application as SabrIronApplication
     private val recordsRepository = app.recordsRepository
-    private val backupRepository = app.backupRepository
+    // Lazy: constructing BackupRepository must not run when only browsing records.
+    // Excel/POI lives in a separate class and loads only on Excel import/export.
+    private val backupRepository by lazy { app.backupRepository }
 
     private val _sort = MutableStateFlow(RecordsSort.Alphabetical)
     val sort: StateFlow<RecordsSort> = _sort.asStateFlow()
@@ -92,7 +94,11 @@ class RecordsViewModel(application: Application) : AndroidViewModel(application)
         viewModelScope.launch {
             runCatching { backupRepository.importExcel(uri) }
                 .onSuccess { _message.value = "Excel backup restored" }
-                .onFailure { _message.value = it.message ?: "Excel import failed" }
+                .onFailure {
+                    _message.value = it.message?.takeIf { msg -> msg.isNotBlank() }
+                        ?: it.javaClass.simpleName
+                        ?: "Excel import failed"
+                }
         }
     }
 

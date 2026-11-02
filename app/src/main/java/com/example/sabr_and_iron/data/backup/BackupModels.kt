@@ -2,6 +2,8 @@ package com.example.sabr_and_iron.data.backup
 
 import kotlinx.serialization.Serializable
 
+const val CURRENT_BACKUP_VERSION = 2
+
 @Serializable
 data class AppBackup(
     val version: Int = 1,
