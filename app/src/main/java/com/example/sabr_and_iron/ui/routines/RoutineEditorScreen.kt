@@ -32,6 +32,7 @@ import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.example.sabr_and_iron.data.local.entity.ExerciseEntity
+import com.example.sabr_and_iron.ui.components.AppCard
 import com.example.sabr_and_iron.ui.components.ConfirmDeleteDialog
 import com.example.sabr_and_iron.ui.components.FloatingIslandTopClearance
 import com.example.sabr_and_iron.ui.components.IslandInsetDialog
@@ -46,12 +47,15 @@ import sh.calvin.reorderable.rememberReorderableLazyListState
 fun RoutineEditorScreen(
     routineId: Long?,
     onDone: () -> Unit,
+    editTick: Int = 0,
     deleteTick: Int = 0,
+    onEditingChange: (Boolean) -> Unit = {},
     modifier: Modifier = Modifier,
     viewModel: RoutinesViewModel = viewModel(),
 ) {
+    val isNew = routineId == null || routineId <= 0L
     val detailFlow = remember(routineId) {
-        if (routineId != null && routineId > 0) viewModel.observeDetail(routineId) else null
+        if (!isNew) viewModel.observeDetail(routineId!!) else null
     }
     val detail by detailFlow?.collectAsStateWithLifecycle(initialValue = null)
         ?: remember { mutableStateOf(null) }
@@ -65,8 +69,21 @@ fun RoutineEditorScreen(
     var draggingId by remember { mutableStateOf<Long?>(null) }
     var nameTaken by remember { mutableStateOf(false) }
     var checkingName by remember { mutableStateOf(false) }
+    var editing by remember(isNew) { mutableStateOf(isNew) }
     val presentIds = selected.map { it.id }.toSet()
     val availableExercises = library.filter { it.id !in presentIds }
+
+    fun persist(onSuccess: () -> Unit = onDone) {
+        if (name.isBlank() || nameTaken || checkingName) return
+        viewModel.save(
+            id = routineId ?: 0L,
+            name = name,
+            inspiredBy = inspiredBy,
+            exerciseIds = selected.map { it.id },
+            onDone = { onSuccess() },
+            onError = { nameTaken = true },
+        )
+    }
 
     LaunchedEffect(detail) {
         detail?.let {
@@ -81,6 +98,33 @@ fun RoutineEditorScreen(
     LaunchedEffect(deleteTick) {
         if (deleteTick > 0 && detail != null) {
             confirmDelete = true
+        }
+    }
+
+    LaunchedEffect(editTick) {
+        if (isNew || editTick == 0) return@LaunchedEffect
+        if (!editing) {
+            detail?.let {
+                name = it.routine.name
+                inspiredBy = it.routine.inspiredBy.orEmpty()
+                selected.clear()
+                selected.addAll(it.exercises.map { item -> item.exercise })
+            }
+            editing = true
+            onEditingChange(true)
+        } else {
+            if (name.isBlank() || nameTaken || checkingName) return@LaunchedEffect
+            viewModel.save(
+                id = routineId ?: 0L,
+                name = name,
+                inspiredBy = inspiredBy,
+                exerciseIds = selected.map { it.id },
+                onDone = {
+                    editing = false
+                    onEditingChange(false)
+                },
+                onError = { nameTaken = true },
+            )
         }
     }
 
@@ -111,100 +155,141 @@ fun RoutineEditorScreen(
             .padding(top = 16.dp),
         verticalArrangement = Arrangement.spacedBy(12.dp),
     ) {
-        OutlinedTextField(
-            value = name,
-            onValueChange = { name = it },
-            label = { Text("Name") },
-            modifier = Modifier.fillMaxWidth(),
-            singleLine = true,
-            isError = nameTaken,
-            supportingText = if (nameTaken) {
-                {
-                    Text(
-                        text = "You've already used this name for a routine",
-                        color = ErrorVibrant,
-                    )
+        if (editing) {
+            OutlinedTextField(
+                value = name,
+                onValueChange = { name = it },
+                label = { Text("Name") },
+                modifier = Modifier.fillMaxWidth(),
+                singleLine = true,
+                isError = nameTaken,
+                supportingText = if (nameTaken) {
+                    {
+                        Text(
+                            text = "You've already used this name for a routine",
+                            color = ErrorVibrant,
+                        )
+                    }
+                } else {
+                    null
+                },
+                colors = OutlinedTextFieldDefaults.colors(
+                    errorBorderColor = ErrorVibrant,
+                    errorLabelColor = ErrorVibrant,
+                    errorCursorColor = ErrorVibrant,
+                    errorSupportingTextColor = ErrorVibrant,
+                ),
+            )
+            OutlinedTextField(
+                value = inspiredBy,
+                onValueChange = { inspiredBy = it },
+                label = { Text("Inspired by (optional)") },
+                modifier = Modifier.fillMaxWidth(),
+                singleLine = true,
+            )
+            OutlinedButton(
+                onClick = { showPicker = true },
+                modifier = Modifier.fillMaxWidth(),
+                enabled = availableExercises.isNotEmpty(),
+            ) {
+                Text(
+                    if (availableExercises.isEmpty() && library.isNotEmpty()) {
+                        "All exercises added"
+                    } else {
+                        "Add exercise"
+                    },
+                )
+            }
+            LazyColumn(
+                state = listState,
+                modifier = Modifier.weight(1f),
+                verticalArrangement = Arrangement.spacedBy(8.dp),
+            ) {
+                items(selected, key = { it.id }) { exercise ->
+                    ReorderableItem(reorderableState, key = exercise.id) { isDragging ->
+                        SideEffect {
+                            if (isDragging) draggingId = exercise.id
+                            else if (draggingId == exercise.id) draggingId = null
+                        }
+                        ReorderableExerciseRow(
+                            name = exercise.name,
+                            machine = exercise.machine,
+                            isDragging = isDragging,
+                            dimmed = draggingId != null && !isDragging,
+                            onRemove = { selected.remove(exercise) },
+                        )
+                    }
+                }
+            }
+            if (isNew) {
+                Box(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .height(FloatingIslandTopClearance),
+                ) {
+                    Column(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .align(Alignment.TopCenter),
+                        verticalArrangement = Arrangement.spacedBy(4.dp),
+                    ) {
+                        Button(
+                            onClick = { persist() },
+                            modifier = Modifier.fillMaxWidth(),
+                            enabled = name.isNotBlank() && !nameTaken && !checkingName,
+                        ) {
+                            Text("Save")
+                        }
+                    }
                 }
             } else {
-                null
-            },
-            colors = OutlinedTextFieldDefaults.colors(
-                errorBorderColor = ErrorVibrant,
-                errorLabelColor = ErrorVibrant,
-                errorCursorColor = ErrorVibrant,
-                errorSupportingTextColor = ErrorVibrant,
-            ),
-        )
-        OutlinedTextField(
-            value = inspiredBy,
-            onValueChange = { inspiredBy = it },
-            label = { Text("Inspired by (optional)") },
-            modifier = Modifier.fillMaxWidth(),
-            singleLine = true,
-        )
-        OutlinedButton(
-            onClick = { showPicker = true },
-            modifier = Modifier.fillMaxWidth(),
-            enabled = availableExercises.isNotEmpty(),
-        ) {
+                Box(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .height(FloatingIslandTopClearance),
+                )
+            }
+        } else {
             Text(
-                if (availableExercises.isEmpty() && library.isNotEmpty()) {
-                    "All exercises added"
-                } else {
-                    "Add exercise"
-                },
+                name.ifBlank { detail?.routine?.name.orEmpty() },
+                style = MaterialTheme.typography.headlineSmall,
             )
-        }
-        LazyColumn(
-            state = listState,
-            modifier = Modifier.weight(1f),
-            verticalArrangement = Arrangement.spacedBy(8.dp),
-        ) {
-            items(selected, key = { it.id }) { exercise ->
-                ReorderableItem(reorderableState, key = exercise.id) { isDragging ->
-                    SideEffect {
-                        if (isDragging) draggingId = exercise.id
-                        else if (draggingId == exercise.id) draggingId = null
+            val inspired = inspiredBy.ifBlank { detail?.routine?.inspiredBy.orEmpty() }
+            if (inspired.isNotBlank()) {
+                Text(
+                    "Inspired by: $inspired",
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+            }
+            LazyColumn(
+                modifier = Modifier.weight(1f),
+                verticalArrangement = Arrangement.spacedBy(8.dp),
+            ) {
+                val exercises = if (selected.isNotEmpty()) {
+                    selected
+                } else {
+                    detail?.exercises?.map { it.exercise }.orEmpty()
+                }
+                items(exercises, key = { it.id }) { exercise ->
+                    AppCard {
+                        Text(exercise.name, style = MaterialTheme.typography.titleMedium)
+                        exercise.machine?.takeIf { it.isNotBlank() }?.let { machine ->
+                            Text(
+                                text = machine,
+                                style = MaterialTheme.typography.bodySmall,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                modifier = Modifier.padding(top = 2.dp),
+                            )
+                        }
                     }
-                    ReorderableExerciseRow(
-                        name = exercise.name,
-                        machine = exercise.machine,
-                        isDragging = isDragging,
-                        dimmed = draggingId != null && !isDragging,
-                        onRemove = { selected.remove(exercise) },
-                    )
                 }
             }
-        }
-        Box(
-            modifier = Modifier
-                .fillMaxWidth()
-                .height(FloatingIslandTopClearance),
-        ) {
-            Column(
+            Box(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .align(Alignment.TopCenter),
-                verticalArrangement = Arrangement.spacedBy(4.dp),
-            ) {
-                Button(
-                    onClick = {
-                        if (name.isBlank() || nameTaken || checkingName) return@Button
-                        viewModel.save(
-                            id = routineId ?: 0L,
-                            name = name,
-                            inspiredBy = inspiredBy,
-                            exerciseIds = selected.map { it.id },
-                            onDone = { onDone() },
-                            onError = { nameTaken = true },
-                        )
-                    },
-                    modifier = Modifier.fillMaxWidth(),
-                    enabled = name.isNotBlank() && !nameTaken && !checkingName,
-                ) {
-                    Text("Save")
-                }
-            }
+                    .height(FloatingIslandTopClearance),
+            )
         }
     }
 

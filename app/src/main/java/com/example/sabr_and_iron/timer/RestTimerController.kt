@@ -29,6 +29,7 @@ class RestTimerController(
     private var workoutId: Long = 0L
     private var workoutExerciseId: Long = 0L
     private var endsAtElapsedRealtime: Long = 0L
+    private var defaultSeconds: Int = 90
 
     fun configureDefault(
         seconds: Int?,
@@ -39,8 +40,9 @@ class RestTimerController(
         exerciseName = name
         this.workoutId = workoutId
         this.workoutExerciseId = workoutExerciseId
+        defaultSeconds = (seconds ?: 90).coerceAtLeast(0)
         if (!_running.value) {
-            _remainingSeconds.value = (seconds ?: 90).coerceAtLeast(0)
+            _remainingSeconds.value = defaultSeconds
         } else {
             // Keep UI in sync if screen remounts while still counting down.
             _remainingSeconds.value = remainingFromEnd()
@@ -57,6 +59,11 @@ class RestTimerController(
         if (!_running.value) {
             _remainingSeconds.value = (_remainingSeconds.value + delta).coerceAtLeast(0)
         }
+    }
+
+    fun reset() {
+        stop()
+        _remainingSeconds.value = defaultSeconds
     }
 
     fun start() {
@@ -83,6 +90,7 @@ class RestTimerController(
             if (_remainingSeconds.value <= 0 && _running.value) {
                 _running.value = false
                 cancelAlarm()
+                _remainingSeconds.value = defaultSeconds
                 RestTimerNotifications.vibrateFiveSeconds(context)
                 RestTimerNotifications.showRestComplete(
                     context = context,

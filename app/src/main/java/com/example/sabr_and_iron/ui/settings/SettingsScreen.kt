@@ -10,6 +10,7 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
+import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
@@ -33,6 +34,9 @@ import com.example.sabr_and_iron.ui.components.LocalAppSnackbar
 import com.example.sabr_and_iron.ui.records.RecordsViewModel
 import java.io.File
 
+private const val ExcelMime =
+    "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+
 @Composable
 fun SettingsScreen(
     modifier: Modifier = Modifier,
@@ -42,15 +46,30 @@ fun SettingsScreen(
     val message by viewModel.message.collectAsStateWithLifecycle()
     val snackbar = LocalAppSnackbar.current
     var confirmClear by remember { mutableStateOf(false) }
-    val importJsonLauncher = rememberLauncherForActivityResult(
-        contract = ActivityResultContracts.OpenDocument(),
-    ) { uri ->
-        uri?.let { viewModel.importJson(it) }
-    }
+    var exportFile by remember { mutableStateOf<File?>(null) }
+    var showExportActions by remember { mutableStateOf(false) }
+
     val importExcelLauncher = rememberLauncherForActivityResult(
         contract = ActivityResultContracts.OpenDocument(),
     ) { uri ->
         uri?.let { viewModel.importExcel(it) }
+    }
+    val saveExcelLauncher = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.CreateDocument(ExcelMime),
+    ) { uri ->
+        val file = exportFile
+        if (uri != null && file != null) {
+            runCatching {
+                context.contentResolver.openOutputStream(uri)?.use { output ->
+                    file.inputStream().use { input -> input.copyTo(output) }
+                } ?: error("Could not open destination")
+            }.onSuccess {
+                viewModel.setMessage("Excel saved")
+            }.onFailure {
+                viewModel.setMessage(it.message ?: "Save failed")
+            }
+        }
+        exportFile = null
     }
 
     fun shareFile(file: File, mime: String) {
@@ -89,26 +108,10 @@ fun SettingsScreen(
             color = MaterialTheme.colorScheme.onSurfaceVariant,
         )
         Button(
-            onClick = { viewModel.exportJson { shareFile(it, "application/json") } },
-            modifier = Modifier.fillMaxWidth(),
-        ) {
-            Text("Export JSON")
-        }
-        OutlinedButton(
             onClick = {
-                importJsonLauncher.launch(arrayOf("application/json", "text/*", "*/*"))
-            },
-            modifier = Modifier.fillMaxWidth(),
-        ) {
-            Text("Import JSON")
-        }
-        OutlinedButton(
-            onClick = {
-                viewModel.exportExcel {
-                    shareFile(
-                        it,
-                        "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
-                    )
+                viewModel.exportExcel { file ->
+                    exportFile = file
+                    showExportActions = true
                 }
             },
             modifier = Modifier.fillMaxWidth(),
@@ -119,7 +122,7 @@ fun SettingsScreen(
             onClick = {
                 importExcelLauncher.launch(
                     arrayOf(
-                        "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+                        ExcelMime,
                         "application/vnd.ms-excel",
                         "*/*",
                     ),
@@ -135,6 +138,42 @@ fun SettingsScreen(
         ) {
             Text("Clear all data", color = MaterialTheme.colorScheme.error)
         }
+    }
+
+    if (showExportActions) {
+        AlertDialog(
+            onDismissRequest = {
+                showExportActions = false
+                exportFile = null
+            },
+            title = { Text("Excel export ready") },
+            text = { Text("Share the file or save it on this device.") },
+            confirmButton = {
+                TextButton(
+                    onClick = {
+                        val file = exportFile
+                        showExportActions = false
+                        if (file != null) {
+                            shareFile(file, ExcelMime)
+                        }
+                        exportFile = null
+                    },
+                ) {
+                    Text("Share")
+                }
+            },
+            dismissButton = {
+                TextButton(
+                    onClick = {
+                        showExportActions = false
+                        val suggested = exportFile?.name ?: "sabr_iron_export.xlsx"
+                        saveExcelLauncher.launch(suggested)
+                    },
+                ) {
+                    Text("Save to device")
+                }
+            },
+        )
     }
 
     if (confirmClear) {

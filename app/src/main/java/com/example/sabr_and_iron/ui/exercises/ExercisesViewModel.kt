@@ -18,15 +18,16 @@ import kotlinx.coroutines.launch
 class ExercisesViewModel(application: Application) : AndroidViewModel(application) {
     private val repository = (application as SabrIronApplication).exerciseRepository
 
-    private val query = MutableStateFlow("")
+    private val _query = MutableStateFlow("")
+    val query: StateFlow<String> = _query
 
     @OptIn(ExperimentalCoroutinesApi::class)
-    val exercises: StateFlow<List<ExerciseEntity>> = query
+    val exercises: StateFlow<List<ExerciseEntity>> = _query
         .flatMapLatest { repository.search(it) }
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), emptyList())
 
     fun onQueryChange(value: String) {
-        query.value = value
+        _query.value = value
     }
 
     fun save(

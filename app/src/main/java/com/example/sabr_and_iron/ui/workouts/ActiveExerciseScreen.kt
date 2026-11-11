@@ -399,26 +399,51 @@ fun ActiveExerciseScreen(
                     Text("Rest timer", style = MaterialTheme.typography.titleMedium)
                     Row(
                         modifier = Modifier.fillMaxWidth(),
-                        horizontalArrangement = Arrangement.spacedBy(8.dp),
+                        horizontalArrangement = Arrangement.spacedBy(6.dp),
                         verticalAlignment = Alignment.CenterVertically,
                     ) {
                         Text(
                             formatTimer(remaining),
-                            style = MaterialTheme.typography.headlineMedium,
+                            style = MaterialTheme.typography.titleLarge,
                             color = MaterialTheme.colorScheme.primary,
+                            maxLines = 1,
                             modifier = Modifier.weight(1f),
                         )
-                        OutlinedButton(onClick = { timer.adjust(-15) }, enabled = !running) {
-                            Text("-15s")
+                        val compactPadding = PaddingValues(horizontal = 10.dp, vertical = 8.dp)
+                        OutlinedButton(
+                            onClick = { timer.reset() },
+                            contentPadding = compactPadding,
+                        ) {
+                            Text("Reset", style = MaterialTheme.typography.labelLarge)
                         }
-                        OutlinedButton(onClick = { timer.adjust(15) }, enabled = !running) {
-                            Text("+15s")
+                        OutlinedButton(
+                            onClick = { timer.adjust(-15) },
+                            enabled = !running,
+                            contentPadding = compactPadding,
+                        ) {
+                            Text("-15s", style = MaterialTheme.typography.labelLarge)
+                        }
+                        OutlinedButton(
+                            onClick = { timer.adjust(15) },
+                            enabled = !running,
+                            contentPadding = compactPadding,
+                        ) {
+                            Text("+15s", style = MaterialTheme.typography.labelLarge)
                         }
                         if (running) {
-                            Button(onClick = { timer.stop() }) { Text("Stop") }
+                            Button(
+                                onClick = { timer.stop() },
+                                contentPadding = compactPadding,
+                            ) {
+                                Text("Stop", style = MaterialTheme.typography.labelLarge)
+                            }
                         } else {
-                            Button(onClick = { timer.start() }, enabled = remaining > 0) {
-                                Text("Start")
+                            Button(
+                                onClick = { timer.start() },
+                                enabled = remaining > 0,
+                                contentPadding = compactPadding,
+                            ) {
+                                Text("Start", style = MaterialTheme.typography.labelLarge)
                             }
                         }
                     }

@@ -56,15 +56,8 @@ class RecordsViewModel(application: Application) : AndroidViewModel(application)
         _message.value = null
     }
 
-    fun exportJson(onFile: (File) -> Unit) {
-        viewModelScope.launch {
-            runCatching { backupRepository.exportJson() }
-                .onSuccess {
-                    onFile(it)
-                    _message.value = "JSON backup ready"
-                }
-                .onFailure { _message.value = it.message ?: "Export failed" }
-        }
+    fun setMessage(value: String) {
+        _message.value = value
     }
 
     fun exportExcel(onFile: (File) -> Unit) {
@@ -75,18 +68,6 @@ class RecordsViewModel(application: Application) : AndroidViewModel(application)
                     _message.value = "Excel export ready"
                 }
                 .onFailure { _message.value = it.message ?: "Excel export failed" }
-        }
-    }
-
-    fun importJson(uri: Uri) {
-        viewModelScope.launch {
-            runCatching {
-                val text = app.contentResolver.openInputStream(uri)?.bufferedReader()?.use { it.readText() }
-                    ?: error("Could not read file")
-                backupRepository.importJson(text)
-            }
-                .onSuccess { _message.value = "Backup restored" }
-                .onFailure { _message.value = it.message ?: "Import failed" }
         }
     }
 
