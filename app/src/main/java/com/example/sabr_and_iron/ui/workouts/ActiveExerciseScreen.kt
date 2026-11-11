@@ -20,6 +20,8 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.pager.HorizontalPager
 import androidx.compose.foundation.pager.rememberPagerState
+import androidx.compose.foundation.relocation.BringIntoViewRequester
+import androidx.compose.foundation.relocation.bringIntoViewRequester
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -59,6 +61,7 @@ import kotlinx.coroutines.flow.drop
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.focus.onFocusEvent
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.input.KeyboardType
@@ -320,11 +323,13 @@ fun ActiveExerciseScreen(
             if (page == 0) {
                 val machineLabel = exercise?.machine?.takeIf { it.isNotBlank() }
                 val muscles = exercise?.targetedMuscles.orEmpty()
+                val logScrollState = rememberScrollState()
+                val inputBringIntoViewRequester = remember { BringIntoViewRequester() }
                 Column(
                     modifier = Modifier
                         .fillMaxSize()
                         .imePadding()
-                        .verticalScroll(rememberScrollState())
+                        .verticalScroll(logScrollState)
                         .padding(horizontal = 16.dp)
                         .padding(top = 16.dp, bottom = 24.dp),
                     verticalArrangement = Arrangement.spacedBy(12.dp),
@@ -448,36 +453,50 @@ fun ActiveExerciseScreen(
                         }
                     }
 
-                    Text("Add set", style = MaterialTheme.typography.titleMedium)
-                    SetInputFields(
-                        exerciseType = exerciseType,
-                        addedWeight = addedWeight,
-                        onAddedWeightChange = { addedWeight = it },
-                        reps = reps,
-                        onRepsChange = { reps = it },
-                        durationMinutes = durationMinutes,
-                        onDurationMinutesChange = { durationMinutes = it },
-                        durationSeconds = durationSeconds,
-                        onDurationSecondsChange = { durationSeconds = it },
-                        distanceKm = distanceKm,
-                        onDistanceKmChange = { distanceKm = it },
-                        startingResistanceKg = workoutExercise?.startingResistanceKg,
-                        bodyWeightKg = bodyWeight,
-                        inlineDifficulty = true,
-                        showEffectiveLoad = true,
-                        alwaysMinimizeLabels = true,
-                        difficultyContent = {
-                            DifficultyIconButton(
-                                difficulty = difficulty,
-                                onClick = { showDifficultyPicker = true },
-                            )
-                        },
-                    )
-                    Button(
-                        onClick = { submitSet() },
-                        modifier = Modifier.fillMaxWidth(),
-                        enabled = canSubmit(),
-                    ) { Text("Add set") }
+                    Column(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .bringIntoViewRequester(inputBringIntoViewRequester)
+                            .onFocusEvent { focusState ->
+                                if (focusState.hasFocus) {
+                                    scope.launch {
+                                        inputBringIntoViewRequester.bringIntoView()
+                                    }
+                                }
+                            },
+                        verticalArrangement = Arrangement.spacedBy(12.dp),
+                    ) {
+                        Text("Add set", style = MaterialTheme.typography.titleMedium)
+                        SetInputFields(
+                            exerciseType = exerciseType,
+                            addedWeight = addedWeight,
+                            onAddedWeightChange = { addedWeight = it },
+                            reps = reps,
+                            onRepsChange = { reps = it },
+                            durationMinutes = durationMinutes,
+                            onDurationMinutesChange = { durationMinutes = it },
+                            durationSeconds = durationSeconds,
+                            onDurationSecondsChange = { durationSeconds = it },
+                            distanceKm = distanceKm,
+                            onDistanceKmChange = { distanceKm = it },
+                            startingResistanceKg = workoutExercise?.startingResistanceKg,
+                            bodyWeightKg = bodyWeight,
+                            inlineDifficulty = true,
+                            showEffectiveLoad = true,
+                            alwaysMinimizeLabels = true,
+                            difficultyContent = {
+                                DifficultyIconButton(
+                                    difficulty = difficulty,
+                                    onClick = { showDifficultyPicker = true },
+                                )
+                            },
+                        )
+                        Button(
+                            onClick = { submitSet() },
+                            modifier = Modifier.fillMaxWidth(),
+                            enabled = canSubmit(),
+                        ) { Text("Add set") }
+                    }
                 }
             } else {
                 LazyColumn(
